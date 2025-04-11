@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Dashboard from '@/components/Dashboard';
+import AIChat from '@/components/AIChat';
 import { useToast } from '@/components/ui/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const { toast } = useToast();
@@ -84,17 +86,51 @@ const Index = () => {
       handleControlAction('alarm_off');
     }
   };
+  
+  const handleChatMessage = (message: string) => {
+    // Обработка сообщений чата
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('открыть') || lowerMessage.includes('разблокировать')) {
+      handleControlAction('unlock');
+    } else if (lowerMessage.includes('закрыть') || lowerMessage.includes('заблокировать')) {
+      handleControlAction('lock');
+    } else if (lowerMessage.includes('свет') && (lowerMessage.includes('вкл') || lowerMessage.includes('включить'))) {
+      handleControlAction('light_on');
+    } else if (lowerMessage.includes('свет') && (lowerMessage.includes('выкл') || lowerMessage.includes('выключить'))) {
+      handleControlAction('light_off');
+    } else if (lowerMessage.includes('тревога') && (lowerMessage.includes('вкл') || lowerMessage.includes('активировать'))) {
+      handleControlAction('alarm_on');
+    } else if (lowerMessage.includes('тревога') && (lowerMessage.includes('выкл') || lowerMessage.includes('деактивировать'))) {
+      handleControlAction('alarm_off');
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header systemStatus={{ connected: systemStatus.connected }} />
       
       <main className="flex-1 bg-background">
-        <Dashboard 
-          systemStatus={systemStatus}
-          onControlAction={handleControlAction} 
-          onVoiceCommand={handleVoiceCommand}
-        />
+        <div className="container py-6">
+          <Tabs defaultValue="dashboard" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="dashboard">Панель управления</TabsTrigger>
+              <TabsTrigger value="assistant">Чат с ассистентом</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dashboard">
+              <Dashboard 
+                systemStatus={systemStatus}
+                onControlAction={handleControlAction} 
+                onVoiceCommand={handleVoiceCommand}
+              />
+            </TabsContent>
+            <TabsContent value="assistant">
+              <div className="mt-6 h-[calc(100vh-200px)]">
+                <AIChat onSendMessage={handleChatMessage} />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
       </main>
       
       <footer className="border-t py-4">

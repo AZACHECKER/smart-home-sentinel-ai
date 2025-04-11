@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
       
       <div className="flex items-center gap-3">
         <div className="flex items-center mr-2">
-          <div className={`status-dot ${systemStatus.connected ? 'online' : 'offline'}`}></div>
+          <div className={`w-2 h-2 rounded-full mr-1 ${systemStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
           <span className="text-sm hidden sm:inline">{systemStatus.connected ? 'Система онлайн' : 'Система оффлайн'}</span>
         </div>
         

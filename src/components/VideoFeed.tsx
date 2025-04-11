@@ -25,11 +25,13 @@ const VideoFeed = () => {
       try {
         setIsModelLoading(true);
         
+        console.log('Загрузка моделей Face API...');
         // Загрузка моделей Face API
         await faceapi.nets.tinyFaceDetector.loadFromUri('/models/face-api');
         await faceapi.nets.faceLandmark68Net.loadFromUri('/models/face-api');
         await faceapi.nets.faceRecognitionNet.loadFromUri('/models/face-api');
         
+        console.log('Загрузка модели COCO-SSD...');
         // Загрузка модели COCO-SSD для обнаружения объектов
         cocoModelRef.current = await cocossd.load();
         
@@ -66,6 +68,7 @@ const VideoFeed = () => {
           streamRef.current.getTracks().forEach(track => track.stop());
         }
         
+        console.log('Запрос доступа к камере...');
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user' }
         });
@@ -74,6 +77,7 @@ const VideoFeed = () => {
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          console.log('Видеопоток установлен в элемент video');
         }
         
         setIsConnecting(false);
@@ -261,6 +265,7 @@ const VideoFeed = () => {
     };
 
     video.onloadeddata = () => {
+      console.log('Видео загружено, начало обработки кадров');
       animationRef.current = requestAnimationFrame(detectFrame);
     };
 
