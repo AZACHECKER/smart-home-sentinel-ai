@@ -33,7 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onVoiceCommand
 }) => {
   const { toast } = useToast();
-  const [lastEvent, setLastEvent] = useState('System initialized');
+  const [lastEvent, setLastEvent] = useState('Система инициализирована');
   const [recognizedUser, setRecognizedUser] = useState<null | { name: string, role: string, confidence: string }>(null);
   const [showAlert, setShowAlert] = useState(false);
 
@@ -42,29 +42,45 @@ const Dashboard: React.FC<DashboardProps> = ({
       setShowAlert(true);
       toast({
         variant: "destructive",
-        title: "Security Alert",
-        description: "Unauthorized access detected!",
+        title: "Тревога!",
+        description: "Обнаружен несанкционированный доступ!",
       });
     } else {
       setShowAlert(false);
     }
   }, [systemStatus.alarmState, toast]);
 
-  const handleRecognition = (user: { name: string, role: string, confidence: string } | null) => {
-    setRecognizedUser(user);
-    if (user) {
-      setLastEvent(`User recognized: ${user.name} (${user.role})`);
-    }
-  };
+  // Симуляция распознавания пользователей
+  useEffect(() => {
+    const users = [
+      { name: "Анна Иванова", role: "Владелец", confidence: "98%" },
+      { name: "Иван Петров", role: "Житель", confidence: "95%" },
+      { name: "Мария Сидорова", role: "Гость", confidence: "85%" },
+      null
+    ];
+    
+    const recognitionInterval = setInterval(() => {
+      const randomUser = users[Math.floor(Math.random() * users.length)];
+      setRecognizedUser(randomUser);
+      
+      if (randomUser) {
+        setLastEvent(`Пользователь распознан: ${randomUser.name} (${randomUser.role})`);
+      } else {
+        setLastEvent('Пользователь не распознан');
+      }
+    }, 30000);
+    
+    return () => clearInterval(recognitionInterval);
+  }, []);
 
   return (
     <div className="container py-6 space-y-6">
       {showAlert && (
         <Alert variant="destructive" className="animate-pulse">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Security Alert!</AlertTitle>
+          <AlertTitle>Внимание! Тревога!</AlertTitle>
           <AlertDescription>
-            Unauthorized access detected. Security system activated.
+            Обнаружен несанкционированный доступ. Система безопасности активирована.
           </AlertDescription>
         </Alert>
       )}
@@ -73,10 +89,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         <Card className="md:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="flex justify-between">
-              <div>Live Camera Feed</div>
-              <Badge variant="outline">Camera 1</Badge>
+              <div>Видеонаблюдение</div>
+              <Badge variant="outline">Камера 1</Badge>
             </CardTitle>
-            <CardDescription>Main entrance monitoring with face recognition</CardDescription>
+            <CardDescription>Мониторинг главного входа с распознаванием лиц</CardDescription>
           </CardHeader>
           <CardContent>
             <VideoFeed />
@@ -86,8 +102,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>System Controls</CardTitle>
-              <CardDescription>Manage your smart home security</CardDescription>
+              <CardTitle>Управление системой</CardTitle>
+              <CardDescription>Управление безопасностью умного дома</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -97,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onControlAction('lock')}
                 >
                   <Lock size={18} />
-                  <span>Lock Door</span>
+                  <span>Закрыть дверь</span>
                 </Button>
                 <Button 
                   variant={systemStatus.lockState === 'unlocked' ? "default" : "outline"}
@@ -105,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onControlAction('unlock')}
                 >
                   <Unlock size={18} />
-                  <span>Unlock Door</span>
+                  <span>Открыть дверь</span>
                 </Button>
                 <Button 
                   variant={systemStatus.lightState === 'on' ? "default" : "outline"}
@@ -113,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onControlAction('light_on')}
                 >
                   <LightbulbIcon size={18} />
-                  <span>Lights On</span>
+                  <span>Включить свет</span>
                 </Button>
                 <Button 
                   variant={systemStatus.lightState === 'off' ? "default" : "outline"}
@@ -121,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onControlAction('light_off')}
                 >
                   <LightbulbOff size={18} />
-                  <span>Lights Off</span>
+                  <span>Выключить свет</span>
                 </Button>
                 <Button 
                   variant={systemStatus.alarmState === 'on' ? "destructive" : "outline"}
@@ -129,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onControlAction('alarm_on')}
                 >
                   <BellRing size={18} />
-                  <span>Alarm On</span>
+                  <span>Тревога вкл.</span>
                 </Button>
                 <Button 
                   variant={systemStatus.alarmState === 'off' ? "default" : "outline"}
@@ -137,7 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onControlAction('alarm_off')}
                 >
                   <BellOff size={18} />
-                  <span>Alarm Off</span>
+                  <span>Тревога выкл.</span>
                 </Button>
               </div>
             </CardContent>
@@ -145,8 +161,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           
           <Card>
             <CardHeader>
-              <CardTitle>User Recognition</CardTitle>
-              <CardDescription>Last detected person</CardDescription>
+              <CardTitle>Распознавание пользователей</CardTitle>
+              <CardDescription>Последний обнаруженный человек</CardDescription>
             </CardHeader>
             <CardContent>
               <RecognitionPanel recognizedUser={recognizedUser} />
@@ -158,8 +174,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Voice Commands</CardTitle>
-            <CardDescription>Control your home with your voice</CardDescription>
+            <CardTitle>Голосовое управление</CardTitle>
+            <CardDescription>Управляйте домом с помощью голоса</CardDescription>
           </CardHeader>
           <CardContent>
             <VoiceCommands onVoiceCommand={onVoiceCommand} />
@@ -168,8 +184,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <Card>
           <CardHeader>
-            <CardTitle>Event Log</CardTitle>
-            <CardDescription>Recent system activities</CardDescription>
+            <CardTitle>Журнал событий</CardTitle>
+            <CardDescription>Недавние события системы</CardDescription>
           </CardHeader>
           <CardContent>
             <EventLog lastEvent={lastEvent} />
@@ -180,12 +196,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Door Status</CardTitle>
+            <CardTitle className="text-base">Статус двери</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-semibold">
-                {systemStatus.lockState === 'locked' ? 'Locked' : 'Unlocked'}
+                {systemStatus.lockState === 'locked' ? 'Закрыто' : 'Открыто'}
               </span>
               <div className={`p-2 rounded-full ${systemStatus.lockState === 'locked' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                 {systemStatus.lockState === 'locked' ? <Lock size={24} /> : <Unlock size={24} />}
@@ -196,12 +212,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Lighting</CardTitle>
+            <CardTitle className="text-base">Освещение</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-semibold">
-                {systemStatus.lightState === 'on' ? 'On' : 'Off'}
+                {systemStatus.lightState === 'on' ? 'Включено' : 'Выключено'}
               </span>
               <div className={`p-2 rounded-full ${systemStatus.lightState === 'on' ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>
                 {systemStatus.lightState === 'on' ? <LightbulbIcon size={24} /> : <LightbulbOff size={24} />}
@@ -212,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Temperature</CardTitle>
+            <CardTitle className="text-base">Температура</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -226,7 +242,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Humidity</CardTitle>
+            <CardTitle className="text-base">Влажность</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -241,159 +257,163 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       <Tabs defaultValue="overview">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="automation">Automation</TabsTrigger>
-          <TabsTrigger value="energy">Energy</TabsTrigger>
+          <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="security">Безопасность</TabsTrigger>
+          <TabsTrigger value="automation">Автоматизация</TabsTrigger>
+          <TabsTrigger value="energy">Энергия</TabsTrigger>
         </TabsList>
+        
         <TabsContent value="overview" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Home Status Overview</CardTitle>
-              <CardDescription>Complete system status</CardDescription>
+              <CardTitle>Общий статус дома</CardTitle>
+              <CardDescription>Полный статус системы</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1 border rounded-lg p-4">
-                  <div className="text-muted-foreground text-sm">Security</div>
+                  <div className="text-muted-foreground text-sm">Безопасность</div>
                   <div className="flex gap-2 items-center">
                     <Shield size={18} className="text-green-500" />
-                    <span className="font-medium">Active</span>
+                    <span className="font-medium">Активна</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 border rounded-lg p-4">
-                  <div className="text-muted-foreground text-sm">Cameras</div>
+                  <div className="text-muted-foreground text-sm">Камеры</div>
                   <div className="flex gap-2 items-center">
                     <Video size={18} className="text-green-500" />
-                    <span className="font-medium">2 Online</span>
+                    <span className="font-medium">2 Онлайн</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 border rounded-lg p-4">
-                  <div className="text-muted-foreground text-sm">Users</div>
+                  <div className="text-muted-foreground text-sm">Пользователи</div>
                   <div className="flex gap-2 items-center">
                     <Users size={18} className="text-blue-500" />
-                    <span className="font-medium">3 Registered</span>
+                    <span className="font-medium">3 Зарегистрировано</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 border rounded-lg p-4">
-                  <div className="text-muted-foreground text-sm">Energy</div>
+                  <div className="text-muted-foreground text-sm">Энергия</div>
                   <div className="flex gap-2 items-center">
                     <PlugZap size={18} className="text-yellow-500" />
-                    <span className="font-medium">Optimal</span>
+                    <span className="font-medium">Оптимально</span>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
+        
         <TabsContent value="security" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Security Status</CardTitle>
-              <CardDescription>System security overview</CardDescription>
+              <CardTitle>Статус безопасности</CardTitle>
+              <CardDescription>Обзор безопасности системы</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2">
                     <Lock size={18} />
-                    <span>Front Door</span>
+                    <span>Входная дверь</span>
                   </div>
                   <Badge variant={systemStatus.lockState === 'locked' ? 'default' : 'destructive'}>
-                    {systemStatus.lockState === 'locked' ? 'Secured' : 'Unlocked'}
+                    {systemStatus.lockState === 'locked' ? 'Защищено' : 'Разблокировано'}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2">
                     <Lock size={18} />
-                    <span>Back Door</span>
+                    <span>Задняя дверь</span>
                   </div>
-                  <Badge>Secured</Badge>
+                  <Badge>Защищено</Badge>
                 </div>
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2">
                     <Video size={18} />
-                    <span>Surveillance Cameras</span>
+                    <span>Камеры наблюдения</span>
                   </div>
-                  <Badge>Active</Badge>
+                  <Badge>Активны</Badge>
                 </div>
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2">
                     <BellRing size={18} />
-                    <span>Alarm System</span>
+                    <span>Система тревоги</span>
                   </div>
                   <Badge variant={systemStatus.alarmState === 'off' ? 'outline' : 'destructive'}>
-                    {systemStatus.alarmState === 'off' ? 'Standby' : 'Triggered'}
+                    {systemStatus.alarmState === 'off' ? 'В режиме ожидания' : 'Активирована'}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Activity size={18} />
-                    <span>Motion Detection</span>
+                    <span>Датчики движения</span>
                   </div>
-                  <Badge variant="outline">Active</Badge>
+                  <Badge variant="outline">Активны</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
+        
         <TabsContent value="automation" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Automation Settings</CardTitle>
-              <CardDescription>Smart home automation rules</CardDescription>
+              <CardTitle>Настройки автоматизации</CardTitle>
+              <CardDescription>Правила автоматизации умного дома</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b pb-2">
                   <div>
-                    <div className="font-medium">Night Mode</div>
-                    <div className="text-sm text-muted-foreground">Automatically lock doors and activate security at 11:00 PM</div>
+                    <div className="font-medium">Ночной режим</div>
+                    <div className="text-sm text-muted-foreground">Автоматически закрывает двери и активирует систему безопасности в 23:00</div>
                   </div>
-                  <Badge>Enabled</Badge>
+                  <Badge>Включено</Badge>
                 </div>
                 <div className="flex items-center justify-between border-b pb-2">
                   <div>
-                    <div className="font-medium">Morning Routine</div>
-                    <div className="text-sm text-muted-foreground">Turn lights on and adjust temperature at 7:00 AM</div>
+                    <div className="font-medium">Утренний режим</div>
+                    <div className="text-sm text-muted-foreground">Включает свет и регулирует температуру в 7:00</div>
                   </div>
-                  <Badge>Enabled</Badge>
+                  <Badge>Включено</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">Away Mode</div>
-                    <div className="text-sm text-muted-foreground">Simulate presence when no one is home</div>
+                    <div className="font-medium">Режим отсутствия</div>
+                    <div className="text-sm text-muted-foreground">Имитирует присутствие, когда никого нет дома</div>
                   </div>
-                  <Badge variant="outline">Disabled</Badge>
+                  <Badge variant="outline">Отключено</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
+        
         <TabsContent value="energy" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Energy Consumption</CardTitle>
-              <CardDescription>Smart home power usage</CardDescription>
+              <CardTitle>Потребление энергии</CardTitle>
+              <CardDescription>Использование энергии умным домом</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b pb-2">
-                  <div className="font-medium">Today's Usage</div>
-                  <div>3.2 kWh</div>
+                  <div className="font-medium">Потребление сегодня</div>
+                  <div>3.2 кВт·ч</div>
                 </div>
                 <div className="flex items-center justify-between border-b pb-2">
-                  <div className="font-medium">Weekly Average</div>
-                  <div>21.5 kWh</div>
+                  <div className="font-medium">Недельное среднее</div>
+                  <div>21.5 кВт·ч</div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="font-medium">Monthly Projection</div>
-                  <div>92.4 kWh</div>
+                  <div className="font-medium">Месячный прогноз</div>
+                  <div>92.4 кВт·ч</div>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <p className="text-sm text-muted-foreground">Consumption 12% lower than last month</p>
+              <p className="text-sm text-muted-foreground">Потребление на 12% ниже, чем в прошлом месяце</p>
             </CardFooter>
           </Card>
         </TabsContent>

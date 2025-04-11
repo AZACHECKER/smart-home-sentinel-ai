@@ -21,34 +21,34 @@ const Index = () => {
     switch (action) {
       case 'lock':
         setSystemStatus(prev => ({ ...prev, lockState: 'locked' }));
-        message = 'Door Locked';
-        description = 'The door has been securely locked.';
+        message = 'Дверь заблокирована';
+        description = 'Дверь надежно закрыта.';
         break;
       case 'unlock':
         setSystemStatus(prev => ({ ...prev, lockState: 'unlocked' }));
-        message = 'Door Unlocked';
-        description = 'The door has been unlocked. Please remember to lock it again.';
+        message = 'Дверь разблокирована';
+        description = 'Дверь открыта. Не забудьте снова закрыть её.';
         break;
       case 'light_on':
         setSystemStatus(prev => ({ ...prev, lightState: 'on' }));
-        message = 'Lights On';
-        description = 'The lights have been turned on.';
+        message = 'Свет включен';
+        description = 'Свет успешно включен.';
         break;
       case 'light_off':
         setSystemStatus(prev => ({ ...prev, lightState: 'off' }));
-        message = 'Lights Off';
-        description = 'The lights have been turned off.';
+        message = 'Свет выключен';
+        description = 'Свет успешно выключен.';
         break;
       case 'alarm_on':
         setSystemStatus(prev => ({ ...prev, alarmState: 'on' }));
-        message = 'Alarm Activated';
-        description = 'The security alarm has been activated.';
+        message = 'Тревога активирована';
+        description = 'Система охраны активирована.';
         variant = 'destructive';
         break;
       case 'alarm_off':
         setSystemStatus(prev => ({ ...prev, alarmState: 'off' }));
-        message = 'Alarm Deactivated';
-        description = 'The security alarm has been deactivated.';
+        message = 'Тревога деактивирована';
+        description = 'Система охраны отключена.';
         break;
       default:
         return;
@@ -63,11 +63,11 @@ const Index = () => {
 
   const handleVoiceCommand = (command: string) => {
     toast({
-      title: "Voice Command Received",
+      title: "Получена голосовая команда",
       description: command,
     });
     
-    // Process voice commands
+    // Обработка голосовых команд
     const lowerCommand = command.toLowerCase();
     
     if (lowerCommand.includes('open') || lowerCommand.includes('unlock')) {
@@ -100,10 +100,10 @@ const Index = () => {
       <footer className="border-t py-4">
         <div className="container flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            Smart Home Sentinel AI &copy; {new Date().getFullYear()}
+            Умный Дом ИИ &copy; {new Date().getFullYear()}
           </div>
           <div className="text-sm text-muted-foreground">
-            System Status: {systemStatus.connected ? 'Online' : 'Offline'}
+            Статус системы: {systemStatus.connected ? 'Онлайн' : 'Оффлайн'}
           </div>
         </div>
       </footer>

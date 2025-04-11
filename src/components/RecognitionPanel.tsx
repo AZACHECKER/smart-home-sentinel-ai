@@ -39,7 +39,7 @@ const RecognitionPanel: React.FC<RecognitionPanelProps> = ({ recognizedUser }) =
               <UserCheck size={16} className="text-green-500" />
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              Confidence: {recognizedUser.confidence}
+              Уверенность: {recognizedUser.confidence}
             </div>
             <div className="mt-1 h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
               <div 
@@ -51,11 +51,11 @@ const RecognitionPanel: React.FC<RecognitionPanelProps> = ({ recognizedUser }) =
         ) : (
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="font-semibold">No user detected</div>
+              <div className="font-semibold">Пользователь не обнаружен</div>
               <UserX size={16} className="text-gray-400" />
             </div>
             <div className="text-sm text-muted-foreground">
-              Waiting for face recognition...
+              Ожидание распознавания лица...
             </div>
           </div>
         )}
