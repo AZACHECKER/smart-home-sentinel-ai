@@ -19,37 +19,37 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
     <>
       <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
         <ShieldCheck size={24} className="text-primary" />
-        <span className="hidden sm:inline">Smart Home Sentinel AI</span>
-        <span className="sm:hidden">Sentinel AI</span>
+        <span className="hidden sm:inline">Умный Дом Стражник ИИ</span>
+        <span className="sm:hidden">Стражник ИИ</span>
       </Link>
       
       <div className="hidden md:flex items-center gap-6">
         <Link to="/" className="font-medium hover:text-primary transition-colors">
-          Dashboard
+          Панель управления
         </Link>
         <Link to="/cameras" className="font-medium hover:text-primary transition-colors">
-          Cameras
+          Камеры
         </Link>
         <Link to="/users" className="font-medium hover:text-primary transition-colors">
-          Users
+          Пользователи
         </Link>
         <Link to="/settings" className="font-medium hover:text-primary transition-colors">
-          Settings
+          Настройки
         </Link>
       </div>
       
       <div className="flex items-center gap-3">
         <div className="flex items-center mr-2">
           <div className={`status-dot ${systemStatus.connected ? 'online' : 'offline'}`}></div>
-          <span className="text-sm hidden sm:inline">{systemStatus.connected ? 'System Online' : 'System Offline'}</span>
+          <span className="text-sm hidden sm:inline">{systemStatus.connected ? 'Система онлайн' : 'Система оффлайн'}</span>
         </div>
         
-        <Button variant="ghost" size="icon" aria-label="Notifications">
+        <Button variant="ghost" size="icon" aria-label="Уведомления">
           <Bell size={20} />
         </Button>
         
         <Link to="/lock">
-          <Button variant="ghost" size="icon" aria-label="Lock">
+          <Button variant="ghost" size="icon" aria-label="Блокировка">
             <Lock size={20} />
           </Button>
         </Link>
@@ -64,7 +64,7 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
           <>
             <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
               <ShieldCheck size={24} className="text-primary" />
-              <span>Sentinel AI</span>
+              <span>Стражник ИИ</span>
             </Link>
             
             <Sheet>
@@ -76,16 +76,16 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
               <SheetContent>
                 <div className="flex flex-col gap-6 mt-8">
                   <Link to="/" className="font-medium text-lg hover:text-primary transition-colors">
-                    Dashboard
+                    Панель управления
                   </Link>
                   <Link to="/cameras" className="font-medium text-lg hover:text-primary transition-colors">
-                    Cameras
+                    Камеры
                   </Link>
                   <Link to="/users" className="font-medium text-lg hover:text-primary transition-colors">
-                    Users
+                    Пользователи
                   </Link>
                   <Link to="/settings" className="font-medium text-lg hover:text-primary transition-colors">
-                    Settings
+                    Настройки
                   </Link>
                 </div>
               </SheetContent>
