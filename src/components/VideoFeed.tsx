@@ -134,8 +134,94 @@ const VideoFeed = () => {
         if (cocoModelRef.current) {
           const predictions = await cocoModelRef.current.detect(video);
           
-          const objects = predictions.map(p => p.class);
-          setDetectedObjects([...new Set(objects)]);
+          const objectsWithRussianTranslation = predictions.map(p => {
+            const translations: {[key: string]: string} = {
+              'person': 'человек',
+              'bicycle': 'велосипед',
+              'car': 'автомобиль',
+              'motorcycle': 'мотоцикл',
+              'airplane': 'самолет',
+              'bus': 'автобус',
+              'train': 'поезд',
+              'truck': 'грузовик',
+              'boat': 'лодка',
+              'traffic light': 'светофор',
+              'fire hydrant': 'пожарный гидрант',
+              'stop sign': 'знак стоп',
+              'parking meter': 'парковочный счетчик',
+              'bench': 'скамейка',
+              'bird': 'птица',
+              'cat': 'кот',
+              'dog': 'собака',
+              'horse': 'лошадь',
+              'sheep': 'овца',
+              'cow': 'корова',
+              'elephant': 'слон',
+              'bear': 'медведь',
+              'zebra': 'зебра',
+              'giraffe': 'жираф',
+              'backpack': 'рюкзак',
+              'umbrella': 'зонт',
+              'handbag': 'сумка',
+              'tie': 'галстук',
+              'suitcase': 'чемодан',
+              'frisbee': 'фрисби',
+              'skis': 'лыжи',
+              'snowboard': 'сноуборд',
+              'sports ball': 'спортивный мяч',
+              'kite': 'воздушный змей',
+              'baseball bat': 'бейсбольная бита',
+              'baseball glove': 'бейсбольная перчатка',
+              'skateboard': 'скейтборд',
+              'surfboard': 'доска для серфинга',
+              'tennis racket': 'теннисная ракетка',
+              'bottle': 'бутылка',
+              'wine glass': 'винный бокал',
+              'cup': 'чашка',
+              'fork': 'вилка',
+              'knife': 'нож',
+              'spoon': 'ложка',
+              'bowl': 'миска',
+              'banana': 'банан',
+              'apple': 'яблоко',
+              'sandwich': 'бутерброд',
+              'orange': 'апельсин',
+              'broccoli': 'брокколи',
+              'carrot': 'морковь',
+              'hot dog': 'хот-дог',
+              'pizza': 'пицца',
+              'donut': 'пончик',
+              'cake': 'торт',
+              'chair': 'стул',
+              'couch': 'диван',
+              'potted plant': 'комнатное растение',
+              'bed': 'кровать',
+              'dining table': 'обеденный стол',
+              'toilet': 'туалет',
+              'tv': 'телевизор',
+              'laptop': 'ноутбук',
+              'mouse': 'мышь',
+              'remote': 'пульт',
+              'keyboard': 'клавиатура',
+              'cell phone': 'мобильный телефон',
+              'microwave': 'микроволновка',
+              'oven': 'духовка',
+              'toaster': 'тостер',
+              'sink': 'раковина',
+              'refrigerator': 'холодильник',
+              'book': 'книга',
+              'clock': 'часы',
+              'vase': 'ваза',
+              'scissors': 'ножницы',
+              'teddy bear': 'плюшевый мишка',
+              'hair drier': 'фен',
+              'toothbrush': 'зубная щетка'
+            };
+            
+            return translations[p.class] || p.class;
+          });
+          
+          setDetectedObjects([...new Set(objectsWithRussianTranslation)]);
           
           // Отрисовка прямоугольников вокруг объектов
           predictions.forEach(prediction => {
@@ -188,7 +274,7 @@ const VideoFeed = () => {
 
   return (
     <div className="space-y-4">
-      <div className="webcam-container aspect-video bg-muted relative overflow-hidden">
+      <div className="webcam-container aspect-video bg-muted relative overflow-hidden rounded-lg">
         {(isConnecting || isModelLoading) ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
@@ -201,6 +287,17 @@ const VideoFeed = () => {
             <div className="text-center text-destructive">
               <AlertTriangle className="mx-auto h-12 w-12 mb-2" />
               <p>{errorMessage}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => {
+                  setIsModelLoading(false);
+                  setIsConnecting(false);
+                  setIsPlaying(true);
+                }}
+              >
+                Повторить попытку
+              </Button>
             </div>
           </div>
         ) : (

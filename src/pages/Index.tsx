@@ -70,17 +70,17 @@ const Index = () => {
     // Обработка голосовых команд
     const lowerCommand = command.toLowerCase();
     
-    if (lowerCommand.includes('open') || lowerCommand.includes('unlock')) {
+    if (lowerCommand.includes('открыть') || lowerCommand.includes('разблокировать')) {
       handleControlAction('unlock');
-    } else if (lowerCommand.includes('lock') || lowerCommand.includes('close')) {
+    } else if (lowerCommand.includes('закрыть') || lowerCommand.includes('заблокировать')) {
       handleControlAction('lock');
-    } else if ((lowerCommand.includes('light') || lowerCommand.includes('lights')) && lowerCommand.includes('on')) {
+    } else if (lowerCommand.includes('свет') && lowerCommand.includes('вкл')) {
       handleControlAction('light_on');
-    } else if ((lowerCommand.includes('light') || lowerCommand.includes('lights')) && lowerCommand.includes('off')) {
+    } else if (lowerCommand.includes('свет') && lowerCommand.includes('выкл')) {
       handleControlAction('light_off');
-    } else if (lowerCommand.includes('alarm') && (lowerCommand.includes('on') || lowerCommand.includes('activate'))) {
+    } else if (lowerCommand.includes('тревога') && (lowerCommand.includes('вкл') || lowerCommand.includes('активировать'))) {
       handleControlAction('alarm_on');
-    } else if (lowerCommand.includes('alarm') && (lowerCommand.includes('off') || lowerCommand.includes('deactivate'))) {
+    } else if (lowerCommand.includes('тревога') && (lowerCommand.includes('выкл') || lowerCommand.includes('деактивировать'))) {
       handleControlAction('alarm_off');
     }
   };
@@ -100,7 +100,7 @@ const Index = () => {
       <footer className="border-t py-4">
         <div className="container flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            Умный Дом ИИ &copy; {new Date().getFullYear()}
+            Умный Дом Стражник ИИ &copy; {new Date().getFullYear()}
           </div>
           <div className="text-sm text-muted-foreground">
             Статус системы: {systemStatus.connected ? 'Онлайн' : 'Оффлайн'}

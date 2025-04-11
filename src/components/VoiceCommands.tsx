@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Mic, Send, MicOff, Sparkles } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 
 interface VoiceCommandsProps {
   onVoiceCommand: (command: string) => void;
@@ -37,22 +36,22 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({ onVoiceCommand }) => {
         response = 'Здравствуйте! Чем я могу помочь?';
       } else if (lowerCommand.includes('открой') || lowerCommand.includes('открыть') || lowerCommand.includes('разблокируй')) {
         response = 'Выполняю команду разблокировки двери. Пожалуйста, смотрите в камеру для распознавания лица.';
-        onVoiceCommand('Open the front door');
+        onVoiceCommand('Открыть входную дверь');
       } else if (lowerCommand.includes('закрой') || lowerCommand.includes('закрыть') || lowerCommand.includes('заблокируй')) {
         response = 'Выполняю команду блокировки двери.';
-        onVoiceCommand('Turn on lights');
+        onVoiceCommand('Закрыть дверь');
       } else if (lowerCommand.includes('свет') && (lowerCommand.includes('включи') || lowerCommand.includes('включить'))) {
         response = 'Включаю свет.';
-        onVoiceCommand('Turn on lights');
+        onVoiceCommand('Включить свет');
       } else if (lowerCommand.includes('свет') && (lowerCommand.includes('выключи') || lowerCommand.includes('выключить'))) {
         response = 'Выключаю свет.';
-        onVoiceCommand('Turn off lights');
+        onVoiceCommand('Выключить свет');
       } else if (lowerCommand.includes('тревог') && (lowerCommand.includes('включи') || lowerCommand.includes('активируй'))) {
         response = 'Активирую тревожную сигнализацию.';
-        onVoiceCommand('Activate alarm');
+        onVoiceCommand('Активировать тревогу');
       } else if (lowerCommand.includes('тревог') && (lowerCommand.includes('выключи') || lowerCommand.includes('деактивируй'))) {
         response = 'Отключаю тревожную сигнализацию.';
-        onVoiceCommand('Deactivate alarm');
+        onVoiceCommand('Деактивировать тревогу');
       } else if (lowerCommand.includes('погод')) {
         response = 'Сегодня ожидается солнечная погода, температура около 22 градусов.';
       } else if (lowerCommand.includes('врем')) {
@@ -101,11 +100,11 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({ onVoiceCommand }) => {
       
       // Эмулируем распознавание речи
       const simulatedCommands = [
-        'Открой дверь',
-        'Включи свет',
+        'Открыть дверь',
+        'Включить свет',
         'Какая погода сегодня?',
         'Который час?',
-        'Активируй сигнализацию',
+        'Активировать сигнализацию',
       ];
       const randomCommand = simulatedCommands[Math.floor(Math.random() * simulatedCommands.length)];
       processVoiceCommand(randomCommand);
@@ -124,11 +123,11 @@ const VoiceCommands: React.FC<VoiceCommandsProps> = ({ onVoiceCommand }) => {
             
             // Эмулируем распознавание речи
             const simulatedCommands = [
-              'Открой дверь',
-              'Включи свет',
+              'Открыть дверь',
+              'Включить свет',
               'Какая погода сегодня?',
               'Который час?',
-              'Активируй сигнализацию',
+              'Активировать сигнализацию',
             ];
             const randomCommand = simulatedCommands[Math.floor(Math.random() * simulatedCommands.length)];
             processVoiceCommand(randomCommand);
