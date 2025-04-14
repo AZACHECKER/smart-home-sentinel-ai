@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Bot, User } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { translations as t } from '@/constants/translations';
 
 interface AIChatProps {
   onSendMessage: (message: string) => void;
@@ -12,7 +13,7 @@ interface AIChatProps {
 const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', message: string}[]>([
-    {role: 'ai', message: 'Привет! Я ваш умный ассистент безопасности. Чем я могу помочь вам сегодня?'}
+    {role: 'ai', message: t.chatWelcome}
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -63,18 +64,10 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isThinking]);
 
-  const suggestedQuestions = [
-    "Какая температура в доме?",
-    "Открыть входную дверь",
-    "Включить свет в гостиной",
-    "Как защитить дом от взлома?",
-    "Покажи камеру у входа",
-  ];
-
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Ассистент безопасности</CardTitle>
+        <CardTitle className="text-base">{t.chatAssistant}</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto mb-4 space-y-4 p-2 bg-muted/30 rounded-md">
@@ -119,7 +112,7 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Введите сообщение..."
+              placeholder={t.chatPlaceholder}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -130,9 +123,9 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
           </div>
           
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Быстрые команды:</p>
+            <p className="text-sm text-muted-foreground mb-2">{t.chatQuickCommands}</p>
             <div className="flex flex-wrap gap-2">
-              {suggestedQuestions.map((q, idx) => (
+              {t.sampleQuestions.map((q, idx) => (
                 <Button 
                   key={idx} 
                   variant="secondary" 

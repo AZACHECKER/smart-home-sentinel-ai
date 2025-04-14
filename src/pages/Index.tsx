@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Dashboard from '@/components/Dashboard';
 import AIChat from '@/components/AIChat';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { translations as t } from '@/constants/translations';
 
 const Index = () => {
   const { toast } = useToast();
@@ -23,34 +24,34 @@ const Index = () => {
     switch (action) {
       case 'lock':
         setSystemStatus(prev => ({ ...prev, lockState: 'locked' }));
-        message = 'Дверь заблокирована';
-        description = 'Дверь надежно закрыта.';
+        message = t.doorLocked;
+        description = t.doorSecured;
         break;
       case 'unlock':
         setSystemStatus(prev => ({ ...prev, lockState: 'unlocked' }));
-        message = 'Дверь разблокирована';
-        description = 'Дверь открыта. Не забудьте снова закрыть её.';
+        message = t.doorUnlocked;
+        description = t.doorOpened;
         break;
       case 'light_on':
         setSystemStatus(prev => ({ ...prev, lightState: 'on' }));
-        message = 'Свет включен';
-        description = 'Свет успешно включен.';
+        message = t.lightTurnedOn;
+        description = t.lightTurnedOnDesc;
         break;
       case 'light_off':
         setSystemStatus(prev => ({ ...prev, lightState: 'off' }));
-        message = 'Свет выключен';
-        description = 'Свет успешно выключен.';
+        message = t.lightTurnedOff;
+        description = t.lightTurnedOffDesc;
         break;
       case 'alarm_on':
         setSystemStatus(prev => ({ ...prev, alarmState: 'on' }));
-        message = 'Тревога активирована';
-        description = 'Система охраны активирована.';
+        message = t.alarmActivated;
+        description = t.alarmActivatedDesc;
         variant = 'destructive';
         break;
       case 'alarm_off':
         setSystemStatus(prev => ({ ...prev, alarmState: 'off' }));
-        message = 'Тревога деактивирована';
-        description = 'Система охраны отключена.';
+        message = t.alarmDeactivated;
+        description = t.alarmDeactivatedDesc;
         break;
       default:
         return;
@@ -65,7 +66,7 @@ const Index = () => {
 
   const handleVoiceCommand = (command: string) => {
     toast({
-      title: "Получена голосовая команда",
+      title: t.voiceCommand,
       description: command,
     });
     
@@ -114,8 +115,8 @@ const Index = () => {
         <div className="container py-6">
           <Tabs defaultValue="dashboard" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="dashboard">Панель управления</TabsTrigger>
-              <TabsTrigger value="assistant">Чат с ассистентом</TabsTrigger>
+              <TabsTrigger value="dashboard">{t.dashboardTab}</TabsTrigger>
+              <TabsTrigger value="assistant">{t.assistantTab}</TabsTrigger>
             </TabsList>
             <TabsContent value="dashboard">
               <Dashboard 
@@ -136,10 +137,10 @@ const Index = () => {
       <footer className="border-t py-4">
         <div className="container flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            Умный Дом Страж ИИ &copy; {new Date().getFullYear()}
+            {t.copyright} &copy; {new Date().getFullYear()}
           </div>
           <div className="text-sm text-muted-foreground">
-            Статус системы: {systemStatus.connected ? 'Онлайн' : 'Оффлайн'}
+            {t.systemStatus} {systemStatus.connected ? t.online : t.offline}
           </div>
         </div>
       </footer>

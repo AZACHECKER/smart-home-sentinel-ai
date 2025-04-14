@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Video, Users, Pause, Play, Camera, AlertTriangle, Settings } from 'lucide-react';
-import * as faceapi from 'face-api.js';
-import * as cocossd from '@tensorflow-models/coco-ssd';
+import { Video, Users, Pause, Play, AlertTriangle, Settings } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -14,334 +13,53 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useVideoSource } from '@/hooks/use-video-source';
+import { useObjectDetection } from '@/hooks/use-object-detection';
+import { translations as t } from '@/constants/translations';
 
 const VideoFeed = () => {
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [detectedFaces, setDetectedFaces] = useState(0);
-  const [detectedObjects, setDetectedObjects] = useState<string[]>([]);
-  const [isConnecting, setIsConnecting] = useState(true);
-  const [isModelLoading, setIsModelLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [videoSource, setVideoSource] = useState<'webcam' | 'stream'>('webcam');
-  const [streamUrl, setStreamUrl] = useState<string>('');
-  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const cocoModelRef = useRef<cocossd.ObjectDetection | null>(null);
   
-  // Загрузка моделей при инициализации
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        setIsModelLoading(true);
-        
-        console.log('Загрузка моделей Face API...');
-        // Загрузка моделей Face API
-        await faceapi.nets.tinyFaceDetector.loadFromUri('/models/face-api');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/models/face-api');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/models/face-api');
-        
-        console.log('Загрузка модели COCO-SSD...');
-        // Загрузка модели COCO-SSD для обнаружения объектов
-        cocoModelRef.current = await cocossd.load();
-        
-        setIsModelLoading(false);
-        console.log('Модели успешно загружены');
-      } catch (error) {
-        console.error('Ошибка при загрузке моделей:', error);
-        setErrorMessage('Ошибка при загрузке моделей распознавания');
-        setIsModelLoading(false);
-      }
-    };
-
-    loadModels();
-    
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
-
-  // Инициализация видеоисточника
-  useEffect(() => {
-    const setupVideo = async () => {
-      if (isModelLoading) return;
-      
-      try {
-        setIsConnecting(true);
-        
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-        }
-        
-        if (videoSource === 'webcam') {
-          console.log('Запрос доступа к камере...');
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' }
-          });
-          
-          streamRef.current = stream;
-          
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            console.log('Видеопоток веб-камеры установлен');
-          }
-        } else if (videoSource === 'stream' && streamUrl) {
-          console.log('Подключение к видеопотоку по URL:', streamUrl);
-          
-          if (videoRef.current) {
-            videoRef.current.srcObject = null;
-            videoRef.current.src = streamUrl;
-            console.log('URL видеопотока установлен');
-          }
-        }
-        
-        setIsConnecting(false);
-        setErrorMessage(null);
-      } catch (error) {
-        console.error('Ошибка доступа к видеоисточнику:', error);
-        
-        if (videoSource === 'webcam') {
-          setErrorMessage('Нет доступа к камере. Пожалуйста, разрешите доступ.');
-        } else {
-          setErrorMessage('Не удалось подключиться к видеопотоку. Проверьте URL.');
-        }
-        
-        setIsConnecting(false);
-      }
-    };
-
-    if (isPlaying && !isModelLoading) {
-      setupVideo();
-    } else if (!isPlaying && streamRef.current && videoSource === 'webcam') {
-      streamRef.current.getTracks().forEach(track => track.stop());
-    }
-  }, [isPlaying, isModelLoading, videoSource, streamUrl]);
-
-  // Обработка видеопотока и распознавание
-  useEffect(() => {
-    if (!videoRef.current || !canvasRef.current || isConnecting || isModelLoading || !isPlaying) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    const detectFrame = async () => {
-      if (video.readyState === 4) {
-        // Настройка canvas по размеру видео
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        
-        // Отрисовка текущего кадра видео
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Распознавание лиц
-        const faceDetections = await faceapi.detectAllFaces(
-          video, 
-          new faceapi.TinyFaceDetectorOptions()
-        ).withFaceLandmarks();
-        
-        setDetectedFaces(faceDetections.length);
-        
-        // Отрисовка прямоугольников вокруг лиц
-        faceDetections.forEach(detection => {
-          const box = detection.detection.box;
-          ctx.strokeStyle = '#00ff00';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
-          ctx.fillStyle = 'white';
-          ctx.fillText('Человек', box.x, box.y - 5);
-        });
-        
-        // Распознавание объектов
-        if (cocoModelRef.current) {
-          const predictions = await cocoModelRef.current.detect(video);
-          
-          const objectsWithRussianTranslation = predictions.map(p => {
-            const translations: {[key: string]: string} = {
-              'person': 'человек',
-              'bicycle': 'велосипед',
-              'car': 'автомобиль',
-              'motorcycle': 'мотоцикл',
-              'airplane': 'самолет',
-              'bus': 'автобус',
-              'train': 'поезд',
-              'truck': 'грузовик',
-              'boat': 'лодка',
-              'traffic light': 'светофор',
-              'fire hydrant': 'пожарный гидрант',
-              'stop sign': 'знак стоп',
-              'parking meter': 'парковочный счетчик',
-              'bench': 'скамейка',
-              'bird': 'птица',
-              'cat': 'кот',
-              'dog': 'собака',
-              'horse': 'лошадь',
-              'sheep': 'овца',
-              'cow': 'корова',
-              'elephant': 'слон',
-              'bear': 'медведь',
-              'zebra': 'зебра',
-              'giraffe': 'жираф',
-              'backpack': 'рюкзак',
-              'umbrella': 'зонт',
-              'handbag': 'сумка',
-              'tie': 'галстук',
-              'suitcase': 'чемодан',
-              'frisbee': 'фрисби',
-              'skis': 'лыжи',
-              'snowboard': 'сноуборд',
-              'sports ball': 'спортивный мяч',
-              'kite': 'воздушный змей',
-              'baseball bat': 'бейсбольная бита',
-              'baseball glove': 'бейсбольная перчатка',
-              'skateboard': 'скейтборд',
-              'surfboard': 'доска для серфинга',
-              'tennis racket': 'теннисная ракетка',
-              'bottle': 'бутылка',
-              'wine glass': 'винный бокал',
-              'cup': 'чашка',
-              'fork': 'вилка',
-              'knife': 'нож',
-              'spoon': 'ложка',
-              'bowl': 'миска',
-              'banana': 'банан',
-              'apple': 'яблоко',
-              'sandwich': 'бутерброд',
-              'orange': 'апельсин',
-              'broccoli': 'брокколи',
-              'carrot': 'морковь',
-              'hot dog': 'хот-дог',
-              'pizza': 'пицца',
-              'donut': 'пончик',
-              'cake': 'торт',
-              'chair': 'стул',
-              'couch': 'диван',
-              'potted plant': 'комнатное растение',
-              'bed': 'кровать',
-              'dining table': 'обеденный стол',
-              'toilet': 'туалет',
-              'tv': 'телевизор',
-              'laptop': 'ноутбук',
-              'mouse': 'мышь',
-              'remote': 'пульт',
-              'keyboard': 'клавиатура',
-              'cell phone': 'мобильный телефон',
-              'microwave': 'микроволновка',
-              'oven': 'духовка',
-              'toaster': 'тостер',
-              'sink': 'раковина',
-              'refrigerator': 'холодильник',
-              'book': 'книга',
-              'clock': 'часы',
-              'vase': 'ваза',
-              'scissors': 'ножницы',
-              'teddy bear': 'плюшевый мишка',
-              'hair drier': 'фен',
-              'toothbrush': 'зубная щетка'
-            };
-            
-            return translations[p.class] || p.class;
-          });
-          
-          setDetectedObjects([...new Set(objectsWithRussianTranslation)]);
-          
-          predictions.forEach(prediction => {
-            const [x, y, width, height] = prediction.bbox;
-            
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, width, height);
-            
-            let objectName = prediction.class;
-            const translations: {[key: string]: string} = {
-              'person': 'человек',
-              'cat': 'кот',
-              'dog': 'собака',
-              'chair': 'стул',
-              'table': 'стол',
-              'bottle': 'бутылка',
-              'cup': 'чашка',
-              'laptop': 'ноутбук',
-              'cell phone': 'телефон',
-              'book': 'книга'
-            };
-            
-            if (translations[objectName]) {
-              objectName = translations[objectName];
-            }
-            
-            ctx.fillStyle = 'white';
-            ctx.font = '16px Arial';
-            ctx.fillText(`${objectName}: ${Math.round(prediction.score * 100)}%`, x, y - 5);
-          });
-        }
-      }
-      
-      animationRef.current = requestAnimationFrame(detectFrame);
-    };
-
-    video.onloadeddata = () => {
-      console.log('Видео загружено, начало обработки кадров');
-      animationRef.current = requestAnimationFrame(detectFrame);
-    };
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-    };
-  }, [isConnecting, isModelLoading, isPlaying]);
-
+  const [videoState, videoActions] = useVideoSource(videoRef);
+  const [detectionState] = useObjectDetection(videoRef, canvasRef, {
+    enabled: videoState.isPlaying && !videoState.isConnecting
+  });
+  
   const handleSourceChange = (value: 'webcam' | 'stream') => {
-    setVideoSource(value);
-    setIsPlaying(true);
+    videoActions.setSourceType(value);
   };
 
   return (
     <div className="space-y-4">
       <div className="webcam-container aspect-video bg-muted relative overflow-hidden rounded-lg">
-        {(isConnecting || isModelLoading) ? (
+        {(videoState.isConnecting || detectionState.isModelLoading) ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4">{isModelLoading ? 'Загрузка моделей распознавания...' : 'Подключение к видеоисточнику...'}</p>
+              <p className="mt-4">{detectionState.isModelLoading ? t.loadingModels : t.connectingToSource}</p>
             </div>
           </div>
-        ) : errorMessage ? (
+        ) : (detectionState.errorMessage || videoState.errorMessage) ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-destructive">
               <AlertTriangle className="mx-auto h-12 w-12 mb-2" />
-              <p>{errorMessage}</p>
+              <p>{detectionState.errorMessage || videoState.errorMessage}</p>
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={() => {
-                  setIsModelLoading(false);
-                  setIsConnecting(false);
-                  setIsPlaying(true);
-                }}
+                onClick={videoActions.retryConnection}
               >
-                Повторить попытку
+                {t.retryConnection}
               </Button>
             </div>
           </div>
         ) : (
           <>
             <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className={isPlaying ? "hidden" : "flex flex-col items-center gap-2"}>
+              <div className={videoState.isPlaying ? "hidden" : "flex flex-col items-center gap-2"}>
                 <Play size={48} className="text-primary opacity-50" />
-                <span className="text-sm">Видео на паузе</span>
+                <span className="text-sm">{t.videoPaused}</span>
               </div>
             </div>
             
@@ -351,7 +69,7 @@ const VideoFeed = () => {
               playsInline
               muted
               className="absolute inset-0 w-full h-full object-cover"
-              style={{ display: isPlaying ? 'block' : 'none' }}
+              style={{ display: videoState.isPlaying ? 'block' : 'none' }}
             />
             
             <canvas 
@@ -359,17 +77,17 @@ const VideoFeed = () => {
               className="absolute inset-0 w-full h-full object-cover"
             />
             
-            {isPlaying && (
+            {videoState.isPlaying && (
               <>
                 <div className="absolute top-2 left-2 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-md text-xs font-medium flex items-center">
-                  <Video className="h-3 w-3 mr-1" /> ПРЯМОЙ ЭФИР
+                  <Video className="h-3 w-3 mr-1" /> {t.live}
                 </div>
                 <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-md text-xs font-medium flex items-center">
-                  <Users className="h-3 w-3 mr-1" /> {detectedFaces} обнаружено
+                  <Users className="h-3 w-3 mr-1" /> {detectionState.detectedFaces} {t.detected}
                 </div>
                 
                 <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/50 to-transparent text-white text-xs">
-                  {videoSource === 'webcam' ? 'Камера устройства' : 'Видеопоток'} • {new Date().toLocaleTimeString()}
+                  {videoState.sourceType === 'webcam' ? t.deviceCamera : t.videoStream} • {new Date().toLocaleTimeString()}
                 </div>
               </>
             )}
@@ -379,68 +97,70 @@ const VideoFeed = () => {
       
       <div className="flex justify-between">
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setIsPlaying(!isPlaying)}>
-            {isPlaying ? <><Pause className="h-4 w-4 mr-1" /> Пауза</> : <><Play className="h-4 w-4 mr-1" /> Воспроизведение</>}
+          <Button variant="outline" size="sm" onClick={videoActions.togglePlayback}>
+            {videoState.isPlaying ? 
+              <><Pause className="h-4 w-4 mr-1" /> {t.pauseVideo}</> : 
+              <><Play className="h-4 w-4 mr-1" /> {t.playVideo}</>}
           </Button>
           
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-1" /> Настройки видео
+                <Settings className="h-4 w-4 mr-1" /> {t.videoSettings}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Настройки видеоисточника</DialogTitle>
+                <DialogTitle>{t.videoSourceSettings}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <RadioGroup 
-                  value={videoSource} 
+                  value={videoState.sourceType} 
                   onValueChange={(value) => handleSourceChange(value as 'webcam' | 'stream')}
                   className="space-y-2"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="webcam" id="webcam" />
-                    <Label htmlFor="webcam">Использовать камеру устройства</Label>
+                    <Label htmlFor="webcam">{t.useDeviceCamera}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="stream" id="stream" />
-                    <Label htmlFor="stream">Использовать URL видеопотока</Label>
+                    <Label htmlFor="stream">{t.useStreamUrl}</Label>
                   </div>
                 </RadioGroup>
                 
-                {videoSource === 'stream' && (
+                {videoState.sourceType === 'stream' && (
                   <div className="space-y-2">
-                    <Label htmlFor="streamUrl">URL видеопотока</Label>
+                    <Label htmlFor="streamUrl">{t.streamUrlLabel}</Label>
                     <Input
                       id="streamUrl"
-                      placeholder="Введите URL видеопотока (rtsp://, http://, etc)"
-                      value={streamUrl}
-                      onChange={(e) => setStreamUrl(e.target.value)}
+                      placeholder={t.streamUrlPlaceholder}
+                      value={videoState.streamUrl}
+                      onChange={(e) => videoActions.setStreamUrl(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Укажите полный URL, включая протокол (например, rtsp://example.com/stream)
+                      {t.streamUrlHelp}
                     </p>
                   </div>
                 )}
               </div>
               <DialogFooter>
-                <Button onClick={() => setIsPlaying(true)}>Применить</Button>
+                <Button onClick={videoActions.startStream}>{t.apply}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
         <div className="text-sm text-muted-foreground flex items-center gap-1">
-          <div className={`h-2 w-2 rounded-full ${isPlaying && !isConnecting ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-          {isPlaying && !isConnecting ? 'Трансляция' : 'Трансляция неактивна'}
+          <div className={`h-2 w-2 rounded-full ${videoState.isPlaying && !videoState.isConnecting ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+          {videoState.isPlaying && !videoState.isConnecting ? t.stream : t.streamInactive}
         </div>
       </div>
       
-      {detectedObjects.length > 0 && (
+      {detectionState.detectedObjects.length > 0 && (
         <div className="bg-muted/50 p-2 rounded-md">
-          <p className="text-sm font-medium mb-1">Обнаружены объекты:</p>
+          <p className="text-sm font-medium mb-1">{t.detectedObjects}</p>
           <div className="flex flex-wrap gap-1">
-            {detectedObjects.map((obj, idx) => (
+            {detectionState.detectedObjects.map((obj, idx) => (
               <span key={idx} className="bg-primary/10 text-xs px-2 py-1 rounded-md">{obj}</span>
             ))}
           </div>

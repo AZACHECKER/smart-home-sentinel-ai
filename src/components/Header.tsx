@@ -5,6 +5,7 @@ import { Bell, Lock, ShieldCheck, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { translations as t } from '@/constants/translations';
 
 interface HeaderProps {
   systemStatus: {
@@ -19,29 +20,29 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
     <>
       <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
         <ShieldCheck size={24} className="text-primary" />
-        <span className="hidden sm:inline">Умный Дом Страж ИИ</span>
-        <span className="sm:hidden">Страж ИИ</span>
+        <span className="hidden sm:inline">{t.appName}</span>
+        <span className="sm:hidden">{t.appNameShort}</span>
       </Link>
       
       <div className="hidden md:flex items-center gap-6">
         <Link to="/" className="font-medium hover:text-primary transition-colors">
-          Панель управления
+          {t.dashboard}
         </Link>
         <Link to="/cameras" className="font-medium hover:text-primary transition-colors">
-          Камеры
+          {t.cameras}
         </Link>
         <Link to="/users" className="font-medium hover:text-primary transition-colors">
-          Пользователи
+          {t.users}
         </Link>
         <Link to="/settings" className="font-medium hover:text-primary transition-colors">
-          Настройки
+          {t.settings}
         </Link>
       </div>
       
       <div className="flex items-center gap-3">
         <div className="flex items-center mr-2">
           <div className={`w-2 h-2 rounded-full mr-1 ${systemStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm hidden sm:inline">{systemStatus.connected ? 'Система онлайн' : 'Система оффлайн'}</span>
+          <span className="text-sm hidden sm:inline">{systemStatus.connected ? t.systemOnline : t.systemOffline}</span>
         </div>
         
         <Button variant="ghost" size="icon" aria-label="Уведомления">
@@ -64,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
           <>
             <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
               <ShieldCheck size={24} className="text-primary" />
-              <span>Страж ИИ</span>
+              <span>{t.appNameShort}</span>
             </Link>
             
             <Sheet>
@@ -76,16 +77,16 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
               <SheetContent>
                 <div className="flex flex-col gap-6 mt-8">
                   <Link to="/" className="font-medium text-lg hover:text-primary transition-colors">
-                    Панель управления
+                    {t.dashboard}
                   </Link>
                   <Link to="/cameras" className="font-medium text-lg hover:text-primary transition-colors">
-                    Камеры
+                    {t.cameras}
                   </Link>
                   <Link to="/users" className="font-medium text-lg hover:text-primary transition-colors">
-                    Пользователи
+                    {t.users}
                   </Link>
                   <Link to="/settings" className="font-medium text-lg hover:text-primary transition-colors">
-                    Настройки
+                    {t.settings}
                   </Link>
                 </div>
               </SheetContent>
