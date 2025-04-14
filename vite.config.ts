@@ -39,4 +39,7 @@ export default defineConfig(({ mode }) => ({
     // Increasing the chunk size limit to accommodate large libraries
     chunkSizeWarningLimit: 2000,
   },
+  optimizeDeps: {
+    include: ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd', 'face-api.js'],
+  }
 }));
