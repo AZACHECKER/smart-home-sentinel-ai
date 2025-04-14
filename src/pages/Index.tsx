@@ -136,7 +136,7 @@ const Index = () => {
       <footer className="border-t py-4">
         <div className="container flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            Умный Дом Стражник ИИ &copy; {new Date().getFullYear()}
+            Умный Дом Страж ИИ &copy; {new Date().getFullYear()}
           </div>
           <div className="text-sm text-muted-foreground">
             Статус системы: {systemStatus.connected ? 'Онлайн' : 'Оффлайн'}

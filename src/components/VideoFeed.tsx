@@ -1,9 +1,19 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Video, Users, Pause, Play, Camera, AlertTriangle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Video, Users, Pause, Play, Camera, AlertTriangle, Settings } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import * as cocossd from '@tensorflow-models/coco-ssd';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogTrigger
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const VideoFeed = () => {
   const [isPlaying, setIsPlaying] = useState(true);
@@ -12,6 +22,8 @@ const VideoFeed = () => {
   const [isConnecting, setIsConnecting] = useState(true);
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [videoSource, setVideoSource] = useState<'webcam' | 'stream'>('webcam');
+  const [streamUrl, setStreamUrl] = useState<string>('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,9 +68,9 @@ const VideoFeed = () => {
     };
   }, []);
 
-  // Инициализация веб-камеры
+  // Инициализация видеоисточника
   useEffect(() => {
-    const setupCamera = async () => {
+    const setupVideo = async () => {
       if (isModelLoading) return;
       
       try {
@@ -68,33 +80,49 @@ const VideoFeed = () => {
           streamRef.current.getTracks().forEach(track => track.stop());
         }
         
-        console.log('Запрос доступа к камере...');
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' }
-        });
-        
-        streamRef.current = stream;
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          console.log('Видеопоток установлен в элемент video');
+        if (videoSource === 'webcam') {
+          console.log('Запрос доступа к камере...');
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' }
+          });
+          
+          streamRef.current = stream;
+          
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            console.log('Видеопоток веб-камеры установлен');
+          }
+        } else if (videoSource === 'stream' && streamUrl) {
+          console.log('Подключение к видеопотоку по URL:', streamUrl);
+          
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+            videoRef.current.src = streamUrl;
+            console.log('URL видеопотока установлен');
+          }
         }
         
         setIsConnecting(false);
         setErrorMessage(null);
       } catch (error) {
-        console.error('Ошибка доступа к камере:', error);
-        setErrorMessage('Нет доступа к камере. Пожалуйста, разрешите доступ.');
+        console.error('Ошибка доступа к видеоисточнику:', error);
+        
+        if (videoSource === 'webcam') {
+          setErrorMessage('Нет доступа к камере. Пожалуйста, разрешите доступ.');
+        } else {
+          setErrorMessage('Не удалось подключиться к видеопотоку. Проверьте URL.');
+        }
+        
         setIsConnecting(false);
       }
     };
 
     if (isPlaying && !isModelLoading) {
-      setupCamera();
-    } else if (!isPlaying && streamRef.current) {
+      setupVideo();
+    } else if (!isPlaying && streamRef.current && videoSource === 'webcam') {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
-  }, [isPlaying, isModelLoading]);
+  }, [isPlaying, isModelLoading, videoSource, streamUrl]);
 
   // Обработка видеопотока и распознавание
   useEffect(() => {
@@ -227,7 +255,6 @@ const VideoFeed = () => {
           
           setDetectedObjects([...new Set(objectsWithRussianTranslation)]);
           
-          // Отрисовка прямоугольников вокруг объектов
           predictions.forEach(prediction => {
             const [x, y, width, height] = prediction.bbox;
             
@@ -235,7 +262,6 @@ const VideoFeed = () => {
             ctx.lineWidth = 2;
             ctx.strokeRect(x, y, width, height);
             
-            // Перевод популярных классов объектов
             let objectName = prediction.class;
             const translations: {[key: string]: string} = {
               'person': 'человек',
@@ -277,6 +303,11 @@ const VideoFeed = () => {
     };
   }, [isConnecting, isModelLoading, isPlaying]);
 
+  const handleSourceChange = (value: 'webcam' | 'stream') => {
+    setVideoSource(value);
+    setIsPlaying(true);
+  };
+
   return (
     <div className="space-y-4">
       <div className="webcam-container aspect-video bg-muted relative overflow-hidden rounded-lg">
@@ -284,7 +315,7 @@ const VideoFeed = () => {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4">{isModelLoading ? 'Загрузка моделей распознавания...' : 'Подключение к камере...'}</p>
+              <p className="mt-4">{isModelLoading ? 'Загрузка моделей распознавания...' : 'Подключение к видеоисточнику...'}</p>
             </div>
           </div>
         ) : errorMessage ? (
@@ -338,7 +369,7 @@ const VideoFeed = () => {
                 </div>
                 
                 <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/50 to-transparent text-white text-xs">
-                  Фронтальная камера • {new Date().toLocaleTimeString()}
+                  {videoSource === 'webcam' ? 'Камера устройства' : 'Видеопоток'} • {new Date().toLocaleTimeString()}
                 </div>
               </>
             )}
@@ -351,6 +382,53 @@ const VideoFeed = () => {
           <Button variant="outline" size="sm" onClick={() => setIsPlaying(!isPlaying)}>
             {isPlaying ? <><Pause className="h-4 w-4 mr-1" /> Пауза</> : <><Play className="h-4 w-4 mr-1" /> Воспроизведение</>}
           </Button>
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Settings className="h-4 w-4 mr-1" /> Настройки видео
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Настройки видеоисточника</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <RadioGroup 
+                  value={videoSource} 
+                  onValueChange={(value) => handleSourceChange(value as 'webcam' | 'stream')}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="webcam" id="webcam" />
+                    <Label htmlFor="webcam">Использовать камеру устройства</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="stream" id="stream" />
+                    <Label htmlFor="stream">Использовать URL видеопотока</Label>
+                  </div>
+                </RadioGroup>
+                
+                {videoSource === 'stream' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="streamUrl">URL видеопотока</Label>
+                    <Input
+                      id="streamUrl"
+                      placeholder="Введите URL видеопотока (rtsp://, http://, etc)"
+                      value={streamUrl}
+                      onChange={(e) => setStreamUrl(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Укажите полный URL, включая протокол (например, rtsp://example.com/stream)
+                    </p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setIsPlaying(true)}>Применить</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
         <div className="text-sm text-muted-foreground flex items-center gap-1">
           <div className={`h-2 w-2 rounded-full ${isPlaying && !isConnecting ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>

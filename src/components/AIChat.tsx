@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Sparkles, Bot, User } from 'lucide-react';
+import { Send, Bot, User } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface AIChatProps {
@@ -12,7 +12,7 @@ interface AIChatProps {
 const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', message: string}[]>([
-    {role: 'ai', message: 'Привет! Я ваш умный ассистент. Чем я могу помочь вам сегодня?'}
+    {role: 'ai', message: 'Привет! Я ваш умный ассистент безопасности. Чем я могу помочь вам сегодня?'}
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -41,6 +41,9 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
         "Я проверил информацию. Вот что удалось найти.",
         "Хороший вопрос. Вот ответ на него.",
         "Я обработал ваш запрос. Вот результат.",
+        "Задача выполнена! Что-нибудь еще?",
+        "Система безопасности работает нормально.",
+        "Все показатели в пределах нормы.",
       ];
       
       const randomResponse = responses[Math.floor(Math.random() * responses.length)];
@@ -61,7 +64,7 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
   }, [chatHistory, isThinking]);
 
   const suggestedQuestions = [
-    "Какая погода сегодня?",
+    "Какая температура в доме?",
     "Открыть входную дверь",
     "Включить свет в гостиной",
     "Как защитить дом от взлома?",
@@ -71,7 +74,7 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Чат с ассистентом</CardTitle>
+        <CardTitle className="text-base">Ассистент безопасности</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto mb-4 space-y-4 p-2 bg-muted/30 rounded-md">
@@ -127,7 +130,7 @@ const AIChat: React.FC<AIChatProps> = ({ onSendMessage }) => {
           </div>
           
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Быстрые вопросы:</p>
+            <p className="text-sm text-muted-foreground mb-2">Быстрые команды:</p>
             <div className="flex flex-wrap gap-2">
               {suggestedQuestions.map((q, idx) => (
                 <Button 

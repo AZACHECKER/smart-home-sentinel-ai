@@ -19,8 +19,8 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
     <>
       <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
         <ShieldCheck size={24} className="text-primary" />
-        <span className="hidden sm:inline">Умный Дом Стражник ИИ</span>
-        <span className="sm:hidden">Стражник ИИ</span>
+        <span className="hidden sm:inline">Умный Дом Страж ИИ</span>
+        <span className="sm:hidden">Страж ИИ</span>
       </Link>
       
       <div className="hidden md:flex items-center gap-6">
@@ -64,7 +64,7 @@ const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
           <>
             <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
               <ShieldCheck size={24} className="text-primary" />
-              <span>Стражник ИИ</span>
+              <span>Страж ИИ</span>
             </Link>
             
             <Sheet>
