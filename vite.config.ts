@@ -25,21 +25,27 @@ export default defineConfig(({ mode }) => ({
       include: [/node_modules/],
     },
     rollupOptions: {
+      // Обработка проблемных модулей как внешних
       external: [
-        // Explicitly marking problematic TensorFlow.js imports as external
         '@tensorflow/tfjs-core/dist/ops/ops_for_converter',
       ],
       output: {
-        manualChunks: {
-          // Separate chunk for TensorFlow
-          tensorflow: ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd', 'face-api.js'],
+        manualChunks: (id) => {
+          // Разделение библиотек на отдельные чанки
+          if (id.includes('node_modules/@tensorflow')) {
+            return 'tensorflow';
+          }
+          if (id.includes('node_modules/face-api')) {
+            return 'face-api';
+          }
         }
       }
     },
-    // Increasing the chunk size limit to accommodate large libraries
-    chunkSizeWarningLimit: 2000,
+    // Увеличение лимита предупреждения о размере чанка
+    chunkSizeWarningLimit: 3000,
   },
   optimizeDeps: {
     include: ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd', 'face-api.js'],
+    exclude: ['@tensorflow/tfjs-core/dist/ops/ops_for_converter']
   }
 }));
