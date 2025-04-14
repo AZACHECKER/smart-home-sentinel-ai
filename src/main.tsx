@@ -3,11 +3,16 @@ import { createRoot } from 'react-dom/client';
 import { StrictMode } from 'react';
 import App from './App.tsx';
 import './index.css';
-import * as tf from '@tensorflow/tfjs';
 
-// Инициализация TensorFlow.js с отложенной загрузкой моделей
+// Полифилл для CommonJS-модулей (решение проблемы с long.js)
+if (typeof window !== 'undefined' && typeof window.global === 'undefined') {
+  window.global = window;
+}
+
+// Динамический импорт TensorFlow для предотвращения проблем
 const initTensorFlow = async () => {
   try {
+    const tf = await import('@tensorflow/tfjs');
     await tf.ready();
     console.log('TensorFlow.js успешно инициализирован');
   } catch (err) {
