@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,7 @@ import { Camera, Check, Trash, UserPlus, RefreshCw, Activity } from 'lucide-reac
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pipeline } from "@huggingface/transformers";
+import { detectFaces } from '@/utils/roboflow';
 
 interface FaceData {
   id: string;
@@ -39,14 +39,12 @@ const FaceTraining = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const featureExtractorRef = useRef<any>(null);
   
-  // Загрузка модели при монтировании компонента
   useEffect(() => {
     const loadModel = async () => {
       try {
         setIsLoading(true);
         setModelStatus('Загрузка модели...');
         
-        // Используем модель для векторизации изображений лиц
         featureExtractorRef.current = await pipeline(
           "feature-extraction",
           "mixedbread-ai/mxbai-embed-xsmall-v1"
@@ -80,7 +78,6 @@ const FaceTraining = () => {
     };
   }, [toast]);
   
-  // Сохранение базы данных лиц при изменении
   useEffect(() => {
     localStorage.setItem('faceDatabase', JSON.stringify(faceDatabase));
   }, [faceDatabase]);
@@ -123,7 +120,7 @@ const FaceTraining = () => {
     setIsCapturing(false);
   };
   
-  const captureImage = () => {
+  const captureImage = async () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
@@ -133,12 +130,33 @@ const FaceTraining = () => {
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL('image/jpeg');
-        setCapturedImages(prev => [...prev, imageData]);
         
-        toast({
-          title: "Изображение захвачено",
-          description: `Захвачено изображение ${capturedImages.length + 1}`,
-        });
+        try {
+          const detections = await detectFaces(imageData);
+          
+          if (detections.length === 0) {
+            toast({
+              title: "No face detected",
+              description: "Please ensure your face is clearly visible to the camera.",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          setCapturedImages(prev => [...prev, imageData]);
+          
+          toast({
+            title: "Face captured",
+            description: `Face detected with ${Math.round(detections[0].confidence * 100)}% confidence`,
+          });
+        } catch (error) {
+          console.error('Error during face detection:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process the image. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
@@ -156,19 +174,16 @@ const FaceTraining = () => {
     
     for (const imageData of images) {
       try {
-        // Создаем временный элемент изображения для предоставления модели
         const img = new Image();
         img.src = imageData;
         await new Promise(resolve => {
           img.onload = resolve;
         });
         
-        // Получаем эмбеддинг для изображения
         const embedding = await featureExtractorRef.current(img, { 
           pooling: "mean", 
           normalize: true 
         });
-        
         embeddings.push(embedding.tolist()[0]);
       } catch (error) {
         console.error('Ошибка при создании эмбеддинга:', error);
@@ -191,13 +206,10 @@ const FaceTraining = () => {
     try {
       setIsLoading(true);
       
-      // Генерируем уникальный ID для пользователя
       const userId = `user_${Date.now()}`;
       
-      // Получаем эмбеддинги для изображений
       const embeddings = await generateEmbeddings(capturedImages);
       
-      // Добавляем пользователя в базу данных
       const newUser: FaceData = {
         id: userId,
         name: userName,
@@ -213,7 +225,6 @@ const FaceTraining = () => {
         description: `${userName} успешно добавлен в базу данных распознавания.`,
       });
       
-      // Очищаем форму
       setUserName('');
       setCapturedImages([]);
       stopCamera();
@@ -239,7 +250,6 @@ const FaceTraining = () => {
   };
   
   const calculateSimilarity = (embedding1: number[], embedding2: number[]): number => {
-    // Косинусная схожесть векторов
     let dotProduct = 0;
     let mag1 = 0;
     let mag2 = 0;
@@ -269,7 +279,6 @@ const FaceTraining = () => {
     try {
       setIsLoading(true);
       
-      // Захватываем текущий кадр видео
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
@@ -279,7 +288,6 @@ const FaceTraining = () => {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL('image/jpeg');
         
-        // Получаем эмбеддинг для изображения
         const img = new Image();
         img.src = imageData;
         await new Promise(resolve => {
@@ -292,7 +300,6 @@ const FaceTraining = () => {
         });
         const currentEmbedding = embedding.tolist()[0];
         
-        // Ищем наиболее похожее лицо в базе данных
         let bestMatch: FaceData | null = null;
         let highestSimilarity = 0;
         
@@ -301,7 +308,7 @@ const FaceTraining = () => {
             for (const faceEmbedding of face.embeddings) {
               const similarity = calculateSimilarity(currentEmbedding, faceEmbedding);
               
-              if (similarity > highestSimilarity && similarity > 0.75) { // Порог сходства
+              if (similarity > highestSimilarity && similarity > 0.75) {
                 highestSimilarity = similarity;
                 bestMatch = face;
               }
