@@ -3,6 +3,12 @@ interface NodeModule {
   id: string;
   filename: string;
   loaded: boolean;
+  isPreloading?: boolean;
+  exports?: any;
+  require?: any;
+  parent?: NodeModule | null;
+  children?: NodeModule[];
+  paths?: string[];
 }
 
 interface NodeRequire {

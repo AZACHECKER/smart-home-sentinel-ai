@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client';
 import { StrictMode } from 'react';
 import App from './App.tsx';
@@ -21,10 +20,20 @@ if (typeof window !== 'undefined' && typeof window.require === 'undefined') {
   requireFn.resolve = (id: string) => id;
   requireFn.cache = {};
   requireFn.extensions = {};
-  requireFn.main = { id: '', filename: '', loaded: true };
+  requireFn.main = { 
+    id: '', 
+    filename: '', 
+    loaded: true,
+    isPreloading: false,
+    exports: {},
+    require: requireFn,
+    parent: null,
+    children: [],
+    paths: []
+  };
   
   // Assign the properly typed function to window.require
-  window.require = requireFn;
+  window.require = requireFn as NodeRequire;
 }
 
 // Динамический импорт TensorFlow для предотвращения проблем
