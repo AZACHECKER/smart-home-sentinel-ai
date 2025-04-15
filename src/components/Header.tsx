@@ -1,11 +1,11 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, Lock, ShieldCheck, Menu } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { translations as t } from '@/constants/translations';
+import { Activity, Bell, Camera, Home, Menu, Settings, UserRound, Users, ScanFace } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useMobile } from '@/hooks/use-mobile';
 
 interface HeaderProps {
   systemStatus: {
@@ -14,87 +14,96 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
-  const isMobile = useIsMobile();
+  const location = useLocation();
+  const isMobile = useMobile();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  const NavItems = () => (
-    <>
-      <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
-        <ShieldCheck size={24} className="text-primary" />
-        <span className="hidden sm:inline">{t.appName}</span>
-        <span className="sm:hidden">{t.appNameShort}</span>
-      </Link>
-      
-      <div className="hidden md:flex items-center gap-6">
-        <Link to="/" className="font-medium hover:text-primary transition-colors">
-          {t.dashboard}
-        </Link>
-        <Link to="/cameras" className="font-medium hover:text-primary transition-colors">
-          {t.cameras}
-        </Link>
-        <Link to="/users" className="font-medium hover:text-primary transition-colors">
-          {t.users}
-        </Link>
-        <Link to="/settings" className="font-medium hover:text-primary transition-colors">
-          {t.settings}
-        </Link>
-      </div>
-      
-      <div className="flex items-center gap-3">
-        <div className="flex items-center mr-2">
-          <div className={`w-2 h-2 rounded-full mr-1 ${systemStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm hidden sm:inline">{systemStatus.connected ? t.systemOnline : t.systemOffline}</span>
-        </div>
-        
-        <Button variant="ghost" size="icon" aria-label="Уведомления">
-          <Bell size={20} />
-        </Button>
-        
-        <Link to="/lock">
-          <Button variant="ghost" size="icon" aria-label="Блокировка">
-            <Lock size={20} />
-          </Button>
-        </Link>
-      </div>
-    </>
-  );
+  const links = [
+    { to: '/', label: 'Панель управления', icon: <Home size={16} className="mr-2" /> },
+    { to: '/cameras', label: 'Камеры', icon: <Camera size={16} className="mr-2" /> },
+    { to: '/users', label: 'Пользователи', icon: <Users size={16} className="mr-2" /> },
+    { to: '/face-recognition', label: 'Распознавание лиц', icon: <ScanFace size={16} className="mr-2" /> },
+    { to: '/settings', label: 'Настройки', icon: <Settings size={16} className="mr-2" /> },
+  ];
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between">
-        {isMobile ? (
-          <>
-            <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
-              <ShieldCheck size={24} className="text-primary" />
-              <span>{t.appNameShort}</span>
-            </Link>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <div className="container flex h-14 items-center">
+        <Link to="/" className="flex items-center font-semibold">
+          <Activity className="h-5 w-5 mr-2 text-primary" />
+          <span>Smart Home Sentinel</span>
+          <Badge
+            variant="outline"
+            className="ml-2 hidden text-xs sm:inline-flex"
+          >
+            AI
+          </Badge>
+        </Link>
+
+        <div className="flex flex-1 items-center justify-end space-x-4">
+          <nav className="hidden md:flex items-center space-x-2">
+            {links.map((link) => (
+              <Button
+                key={link.to}
+                variant={location.pathname === link.to ? "default" : "ghost"}
+                size="sm"
+                asChild
+              >
+                <Link to={link.to}>
+                  {link.icon}
+                  {link.label}
+                </Link>
+              </Button>
+            ))}
+          </nav>
+          
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" className="mr-2 relative">
+              <Bell size={18} />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary"></span>
+            </Button>
             
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu size={20} />
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <div className="flex flex-col gap-6 mt-8">
-                  <Link to="/" className="font-medium text-lg hover:text-primary transition-colors">
-                    {t.dashboard}
-                  </Link>
-                  <Link to="/cameras" className="font-medium text-lg hover:text-primary transition-colors">
-                    {t.cameras}
-                  </Link>
-                  <Link to="/users" className="font-medium text-lg hover:text-primary transition-colors">
-                    {t.users}
-                  </Link>
-                  <Link to="/settings" className="font-medium text-lg hover:text-primary transition-colors">
-                    {t.settings}
-                  </Link>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </>
-        ) : (
-          <NavItems />
-        )}
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/settings">
+                <UserRound size={18} />
+              </Link>
+            </Button>
+          </div>
+          
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+              >
+                <Menu size={18} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+              <div className="grid gap-4 py-4">
+                <h3 className="text-sm font-semibold">Навигация</h3>
+                <nav className="grid gap-2">
+                  {links.map((link) => (
+                    <Button
+                      key={link.to}
+                      variant={location.pathname === link.to ? "default" : "ghost"}
+                      size="sm"
+                      asChild
+                      className="justify-start"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Link to={link.to}>
+                        {link.icon}
+                        {link.label}
+                      </Link>
+                    </Button>
+                  ))}
+                </nav>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );
