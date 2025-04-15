@@ -26,40 +26,40 @@ export default defineConfig(({ mode }) => ({
       transformMixedEsModules: true, // Add this to transform mixed modules
     },
     rollupOptions: {
-      // Обработка проблемных модулей как внешних
+      // Handle problematic modules as external
       external: [
         '@tensorflow/tfjs-core/dist/ops/ops_for_converter',
       ],
       output: {
         manualChunks: (id) => {
-          // Разделение библиотек на отдельные чанки
+          // Split libraries into separate chunks
           if (id.includes('node_modules/@tensorflow')) {
             return 'tensorflow';
           }
           if (id.includes('node_modules/face-api')) {
             return 'face-api';
           }
-          // Отдельный чанк для библиотеки long
+          // Separate chunk for long library
           if (id.includes('node_modules/long')) {
             return 'vendors-long';
           }
-          // Отдельный чанк для seedrandom
+          // Separate chunk for seedrandom
           if (id.includes('node_modules/seedrandom')) {
             return 'vendors-seedrandom';
           }
         },
-        // Обработка модулей CommonJS (таких как long.js)
+        // Handle CommonJS modules (like long.js)
         format: 'es',
       }
     },
-    // Увеличение лимита предупреждения о размере чанка
+    // Increase chunk size warning limit
     chunkSizeWarningLimit: 3000,
   },
   optimizeDeps: {
     include: ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd', 'face-api.js', 'long', 'seedrandom'],
     exclude: ['@tensorflow/tfjs-core/dist/ops/ops_for_converter'],
     esbuildOptions: {
-      // Настройка для long.js и подобных библиотек
+      // Configuration for long.js and similar libraries
       define: {
         global: 'globalThis'
       },
