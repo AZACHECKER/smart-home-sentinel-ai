@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -5,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Check, Trash, UserPlus, RefreshCw, Activity } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { Camera, Check, Trash, UserPlus, RefreshCw, Activity, Square, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pipeline } from "@huggingface/transformers";
-import { detectFaces } from '@/utils/roboflow';
+import { detectFaces, drawDetections, extractFaceRegion, RoboflowDetection } from '@/utils/roboflow';
+import { Progress } from "@/components/ui/progress";
 
 interface FaceData {
   id: string;
@@ -27,18 +29,25 @@ const FaceTraining = () => {
   const [userRole, setUserRole] = useState<'owner' | 'guest' | 'admin'>('guest');
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [detections, setDetections] = useState<RoboflowDetection[]>([]);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [isRealTimeDetection, setIsRealTimeDetection] = useState(false);
   const [faceDatabase, setFaceDatabase] = useState<FaceData[]>(() => {
     const saved = localStorage.getItem('faceDatabase');
     return saved ? JSON.parse(saved) : [];
   });
   const [modelStatus, setModelStatus] = useState('Модель не загружена');
   const [recognizedPerson, setRecognizedPerson] = useState<FaceData | null>(null);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const detectionIntervalRef = useRef<number | null>(null);
   const featureExtractorRef = useRef<any>(null);
   
+  // Load the AI model on component mount
   useEffect(() => {
     const loadModel = async () => {
       try {
@@ -75,12 +84,70 @@ const FaceTraining = () => {
     
     return () => {
       stopCamera();
+      if (detectionIntervalRef.current) {
+        window.clearInterval(detectionIntervalRef.current);
+      }
     };
   }, [toast]);
   
+  // Save face database to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('faceDatabase', JSON.stringify(faceDatabase));
   }, [faceDatabase]);
+  
+  // Real-time face detection
+  useEffect(() => {
+    if (!isCapturing || !isRealTimeDetection || !overlayCanvasRef.current || !videoRef.current) {
+      return;
+    }
+    
+    const detectInVideo = async () => {
+      if (!videoRef.current || !overlayCanvasRef.current) return;
+      
+      try {
+        // Create temporary canvas to get video frame
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = videoRef.current.videoWidth;
+        tempCanvas.height = videoRef.current.videoHeight;
+        
+        const ctx = tempCanvas.getContext('2d');
+        if (!ctx) return;
+        
+        // Draw current video frame to canvas
+        ctx.drawImage(videoRef.current, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Get image data as base64
+        const imageData = tempCanvas.toDataURL('image/jpeg');
+        
+        // Detect faces
+        const faceDetections = await detectFaces(imageData, confidenceThreshold);
+        
+        // Update state with detections
+        setDetections(faceDetections);
+        
+        // Draw boxes on overlay canvas
+        drawDetections(
+          overlayCanvasRef.current,
+          faceDetections, 
+          videoRef.current.videoWidth,
+          videoRef.current.videoHeight
+        );
+        
+      } catch (error) {
+        console.error("Error in real-time detection:", error);
+      }
+    };
+    
+    // Start detection interval
+    detectionIntervalRef.current = window.setInterval(detectInVideo, 500);
+    
+    // Clean up interval on component unmount or when dependencies change
+    return () => {
+      if (detectionIntervalRef.current) {
+        window.clearInterval(detectionIntervalRef.current);
+      }
+    };
+  }, [isCapturing, isRealTimeDetection, confidenceThreshold]);
   
   const startCamera = async () => {
     try {
@@ -96,6 +163,18 @@ const FaceTraining = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCapturing(true);
+        
+        // Clear previous detections
+        setDetections([]);
+        if (overlayCanvasRef.current) {
+          const ctx = overlayCanvasRef.current.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+          }
+        }
+        
+        // Enable real-time detection
+        setIsRealTimeDetection(true);
       }
     } catch (error) {
       console.error('Ошибка доступа к камере:', error);
@@ -118,46 +197,84 @@ const FaceTraining = () => {
     }
     
     setIsCapturing(false);
+    setIsRealTimeDetection(false);
+    
+    // Clear detection interval
+    if (detectionIntervalRef.current) {
+      window.clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
   };
   
   const captureImage = async () => {
-    if (videoRef.current) {
+    if (!videoRef.current) return;
+    
+    setIsLoading(true);
+    
+    try {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       
       const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const imageData = canvas.toDataURL('image/jpeg');
-        
-        try {
-          const detections = await detectFaces(imageData);
-          
-          if (detections.length === 0) {
-            toast({
-              title: "No face detected",
-              description: "Please ensure your face is clearly visible to the camera.",
-              variant: "destructive",
-            });
-            return;
-          }
-          
-          setCapturedImages(prev => [...prev, imageData]);
-          
-          toast({
-            title: "Face captured",
-            description: `Face detected with ${Math.round(detections[0].confidence * 100)}% confidence`,
-          });
-        } catch (error) {
-          console.error('Error during face detection:', error);
-          toast({
-            title: "Error",
-            description: "Failed to process the image. Please try again.",
-            variant: "destructive",
-          });
-        }
+      if (!ctx) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: "Не удалось создать canvas для захвата изображения",
+        });
+        setIsLoading(false);
+        return;
       }
+      
+      // Draw video frame to canvas
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/jpeg');
+      
+      // Detect faces in the captured image
+      const faceDetections = await detectFaces(imageData, confidenceThreshold);
+      
+      if (faceDetections.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Лицо не обнаружено",
+          description: "Убедитесь, что ваше лицо хорошо видно в кадре.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (faceDetections.length > 1) {
+        toast({
+          variant: "warning",
+          title: "Обнаружено несколько лиц",
+          description: "Будет использовано лицо с наивысшей уверенностью распознавания.",
+        });
+      }
+      
+      // Sort detections by confidence (highest first)
+      faceDetections.sort((a, b) => b.confidence - a.confidence);
+      
+      // Extract the most confident face region
+      const bestDetection = faceDetections[0];
+      const faceImage = await extractFaceRegion(imageData, bestDetection);
+      
+      // Add to captured images
+      setCapturedImages(prev => [...prev, faceImage]);
+      
+      toast({
+        title: "Лицо захвачено",
+        description: `Уверенность распознавания: ${Math.round(bestDetection.confidence * 100)}%`,
+      });
+    } catch (error) {
+      console.error('Ошибка при захвате изображения:', error);
+      toast({
+        variant: "destructive",
+        title: "Ошибка",
+        description: "Не удалось обработать изображение. Пожалуйста, попробуйте еще раз.",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -170,20 +287,26 @@ const FaceTraining = () => {
       throw new Error('Модель не загружена');
     }
     
-    const embeddings = [];
+    const embeddings: number[][] = [];
     
-    for (const imageData of images) {
+    for (let i = 0; i < images.length; i++) {
       try {
+        // Update progress
+        setProcessingProgress(((i + 1) / images.length) * 100);
+        
+        // Create image element from base64 string
         const img = new Image();
-        img.src = imageData;
+        img.src = images[i];
         await new Promise(resolve => {
           img.onload = resolve;
         });
         
+        // Generate embedding
         const embedding = await featureExtractorRef.current(img, { 
           pooling: "mean", 
           normalize: true 
         });
+        
         embeddings.push(embedding.tolist()[0]);
       } catch (error) {
         console.error('Ошибка при создании эмбеддинга:', error);
@@ -205,8 +328,14 @@ const FaceTraining = () => {
     
     try {
       setIsLoading(true);
+      setProcessingProgress(0);
       
       const userId = `user_${Date.now()}`;
+      
+      toast({
+        title: "Обработка изображений",
+        description: "Создание эмбеддингов для распознавания лица...",
+      });
       
       const embeddings = await generateEmbeddings(capturedImages);
       
@@ -238,6 +367,7 @@ const FaceTraining = () => {
       });
     } finally {
       setIsLoading(false);
+      setProcessingProgress(0);
     }
   };
   
@@ -279,57 +409,85 @@ const FaceTraining = () => {
     try {
       setIsLoading(true);
       
+      // Capture current frame
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       
       const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const imageData = canvas.toDataURL('image/jpeg');
-        
-        const img = new Image();
-        img.src = imageData;
-        await new Promise(resolve => {
-          img.onload = resolve;
+      if (!ctx) {
+        throw new Error('Не удалось создать контекст canvas');
+      }
+      
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/jpeg');
+      
+      // Detect faces
+      const faceDetections = await detectFaces(imageData, confidenceThreshold);
+      
+      if (faceDetections.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Лицо не обнаружено",
+          description: "Убедитесь, что ваше лицо хорошо видно в кадре.",
         });
-        
-        const embedding = await featureExtractorRef.current(img, { 
-          pooling: "mean", 
-          normalize: true 
-        });
-        const currentEmbedding = embedding.tolist()[0];
-        
-        let bestMatch: FaceData | null = null;
-        let highestSimilarity = 0;
-        
-        for (const face of faceDatabase) {
-          if (face.embeddings) {
-            for (const faceEmbedding of face.embeddings) {
-              const similarity = calculateSimilarity(currentEmbedding, faceEmbedding);
-              
-              if (similarity > highestSimilarity && similarity > 0.75) {
-                highestSimilarity = similarity;
-                bestMatch = face;
-              }
+        setIsLoading(false);
+        return;
+      }
+      
+      // Sort detections by confidence (highest first)
+      faceDetections.sort((a, b) => b.confidence - a.confidence);
+      
+      // Extract face with highest confidence
+      const bestDetection = faceDetections[0];
+      const faceImage = await extractFaceRegion(imageData, bestDetection);
+      
+      // Create embedding for detected face
+      const img = new Image();
+      img.src = faceImage;
+      await new Promise(resolve => {
+        img.onload = resolve;
+      });
+      
+      const embedding = await featureExtractorRef.current(img, { 
+        pooling: "mean", 
+        normalize: true 
+      });
+      const currentEmbedding = embedding.tolist()[0];
+      
+      // Compare with faces in database
+      let bestMatch: FaceData | null = null;
+      let highestSimilarity = 0;
+      
+      for (const face of faceDatabase) {
+        if (face.embeddings) {
+          for (const faceEmbedding of face.embeddings) {
+            const similarity = calculateSimilarity(currentEmbedding, faceEmbedding);
+            
+            if (similarity > highestSimilarity && similarity > 0.75) {
+              highestSimilarity = similarity;
+              bestMatch = face;
             }
           }
         }
+      }
+      
+      if (bestMatch) {
+        setRecognizedPerson(bestMatch);
+        toast({
+          title: "Лицо распознано",
+          description: `Распознан пользователь: ${bestMatch.name} (${bestMatch.role})`,
+        });
         
-        if (bestMatch) {
-          setRecognizedPerson(bestMatch);
-          toast({
-            title: "Лицо распознано",
-            description: `Распознан пользователь: ${bestMatch.name} (${bestMatch.role})`,
-          });
-        } else {
-          setRecognizedPerson(null);
-          toast({
-            variant: "destructive",
-            title: "Лицо не распознано",
-            description: "Не удалось найти совпадение в базе данных.",
-          });
-        }
+        // Update state with recognized face image
+        bestMatch.recognizedFaceImage = faceImage;
+      } else {
+        setRecognizedPerson(null);
+        toast({
+          variant: "destructive",
+          title: "Лицо не распознано",
+          description: "Не удалось найти совпадение в базе данных.",
+        });
       }
     } catch (error) {
       console.error('Ошибка при распознавании лица:', error);
@@ -401,19 +559,45 @@ const FaceTraining = () => {
                 <div className="border rounded-md p-4">
                   {isCapturing ? (
                     <div className="space-y-4">
-                      <div className="aspect-video bg-muted rounded-md overflow-hidden">
+                      <div className="aspect-video bg-muted rounded-md overflow-hidden relative">
                         <video 
                           ref={videoRef} 
                           autoPlay 
                           playsInline
                           className="w-full h-full object-cover"
                         />
+                        <canvas
+                          ref={overlayCanvasRef}
+                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                        />
+                        
+                        {/* Real-time detection status */}
+                        <div className="absolute top-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs flex items-center">
+                          <div className={`h-2 w-2 rounded-full mr-1 ${detections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                          {detections.length > 0 ? `Обнаружено лиц: ${detections.length}` : 'Поиск лиц...'}
+                        </div>
                       </div>
                       <div className="flex justify-between">
-                        <Button onClick={captureImage} disabled={isLoading}>
-                          <Camera size={16} className="mr-2" /> Захватить фото
+                        <Button 
+                          onClick={captureImage} 
+                          disabled={isLoading}
+                          className="relative"
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 size={16} className="mr-2 animate-spin" />
+                              Обработка...
+                            </>
+                          ) : (
+                            <>
+                              <Camera size={16} className="mr-2" /> 
+                              Захватить фото
+                            </>
+                          )}
                         </Button>
-                        <Button variant="outline" onClick={stopCamera} disabled={isLoading}>Отмена</Button>
+                        <Button variant="outline" onClick={stopCamera} disabled={isLoading}>
+                          Остановить камеру
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -466,6 +650,16 @@ const FaceTraining = () => {
                   Сделайте 3-5 фотографий лица с разных ракурсов для лучшего распознавания.
                 </p>
               </div>
+              
+              {processingProgress > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Обработка изображений</span>
+                    <span>{Math.round(processingProgress)}%</span>
+                  </div>
+                  <Progress value={processingProgress} className="h-2" />
+                </div>
+              )}
               
               <Button 
                 className="w-full" 
@@ -533,17 +727,27 @@ const FaceTraining = () => {
                   <div className="border rounded-md p-4">
                     {isCapturing ? (
                       <div className="space-y-4">
-                        <div className="aspect-video bg-muted rounded-md overflow-hidden">
+                        <div className="aspect-video bg-muted rounded-md overflow-hidden relative">
                           <video 
                             ref={videoRef} 
                             autoPlay 
                             playsInline
                             className="w-full h-full object-cover"
                           />
-                          <canvas 
-                            ref={canvasRef} 
-                            className="absolute inset-0 w-full h-full object-cover opacity-0"
+                          <canvas
+                            ref={overlayCanvasRef}
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                           />
+                          
+                          {/* Real-time detection indicator */}
+                          <div className="absolute top-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs flex items-center">
+                            <div className={`h-2 w-2 rounded-full mr-1 ${detections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                            {detections.length > 0 ? `Обнаружено лиц: ${detections.length}` : 'Поиск лиц...'}
+                          </div>
+
+                          <div className="absolute bottom-2 left-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs">
+                            Нажмите кнопку "Распознать" когда лицо будет четко видно в кадре
+                          </div>
                         </div>
                         <div className="flex justify-between">
                           <Button onClick={recognizeFace} disabled={isLoading}>
@@ -576,7 +780,7 @@ const FaceTraining = () => {
                       <div className="flex items-center space-x-4">
                         <div className="relative h-16 w-16 overflow-hidden rounded-full">
                           <img 
-                            src={recognizedPerson.images[0]} 
+                            src={recognizedPerson.recognizedFaceImage || recognizedPerson.images[0]} 
                             alt={recognizedPerson.name}
                             className="object-cover h-full w-full"
                           />
