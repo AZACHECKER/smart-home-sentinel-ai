@@ -1,196 +1,91 @@
-import React, { useState, useRef, useEffect } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Check, Trash, UserPlus, RefreshCw, Activity, Square, Loader2 } from 'lucide-react';
+import { Camera, UserPlus, RefreshCw, Activity, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { pipeline } from "@huggingface/transformers";
-import { detectFaces, drawDetections, extractFaceRegion, RoboflowDetection } from '@/utils/roboflow';
+import { detectFaces, drawDetections, extractFaceRegion } from '@/utils/roboflow';
 import { Progress } from "@/components/ui/progress";
 
-interface FaceData {
-  id: string;
-  name: string;
-  role: 'owner' | 'guest' | 'admin';
-  images: string[];
-  embeddings?: number[][];
-  recognizedFaceImage?: string;
-}
+// Import new components and hooks
+import CameraView from '@/components/face/CameraView';
+import CapturedImages from '@/components/face/CapturedImages';
+import UserForm from '@/components/face/UserForm';
+import UserList from '@/components/face/UserList';
+import RecognizedPerson from '@/components/face/RecognizedPerson';
+import useFaceDetector from '@/hooks/use-face-detector';
+import useCamera from '@/hooks/use-camera';
+import { 
+  FaceData, 
+  loadFaceDatabase, 
+  saveFaceDatabase,
+  generateEmbeddings, 
+  captureImageFromVideo,
+  calculateSimilarity
+} from '@/utils/face-recognition';
 
 const FaceTraining = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [modelLoaded, setModelLoaded] = useState(false);
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState<'owner' | 'guest' | 'admin'>('guest');
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [detections, setDetections] = useState<RoboflowDetection[]>([]);
+  const [detections, setDetections] = useState([]);
   const [processingProgress, setProcessingProgress] = useState(0);
-  const [isRealTimeDetection, setIsRealTimeDetection] = useState(false);
-  const [faceDatabase, setFaceDatabase] = useState<FaceData[]>(() => {
-    const saved = localStorage.getItem('faceDatabase');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [modelStatus, setModelStatus] = useState('Модель не загружена');
+  const [faceDatabase, setFaceDatabase] = useState<FaceData[]>([]);
   const [recognizedPerson, setRecognizedPerson] = useState<FaceData | null>(null);
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-  const detectionIntervalRef = useRef<number | null>(null);
-  const featureExtractorRef = useRef<any>(null);
+  // Use custom hooks
+  const { modelLoaded, modelStatus, featureExtractor } = useFaceDetector();
   
-  useEffect(() => {
-    const loadModel = async () => {
-      try {
-        setIsLoading(true);
-        setModelStatus('Загрузка модели...');
-        
-        featureExtractorRef.current = await pipeline(
-          "feature-extraction",
-          "mixedbread-ai/mxbai-embed-xsmall-v1"
-        );
-        
-        setModelLoaded(true);
-        setModelStatus('Модель загружена успешно');
-        setIsLoading(false);
-        
-        toast({
-          title: "Модель загружена",
-          description: "AI модель для распознавания лиц успешно инициализирована",
-        });
-      } catch (error) {
-        console.error('Ошибка загрузки модели:', error);
-        setModelStatus('Ошибка загрузки модели');
-        setIsLoading(false);
-        
-        toast({
-          variant: "destructive",
-          title: "Ошибка загрузки модели",
-          description: "Не удалось загрузить модель для распознавания лиц",
-        });
-      }
-    };
-
-    loadModel();
-    
-    return () => {
-      stopCamera();
-      if (detectionIntervalRef.current) {
-        window.clearInterval(detectionIntervalRef.current);
-      }
-    };
-  }, [toast]);
-  
-  useEffect(() => {
-    localStorage.setItem('faceDatabase', JSON.stringify(faceDatabase));
-  }, [faceDatabase]);
-  
-  useEffect(() => {
-    if (!isCapturing || !isRealTimeDetection || !overlayCanvasRef.current || !videoRef.current) {
-      return;
-    }
-    
-    const detectInVideo = async () => {
-      if (!videoRef.current || !overlayCanvasRef.current) return;
-      
-      try {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = videoRef.current.videoWidth;
-        tempCanvas.height = videoRef.current.videoHeight;
-        
-        const ctx = tempCanvas.getContext('2d');
-        if (!ctx) return;
-        
-        ctx.drawImage(videoRef.current, 0, 0, tempCanvas.width, tempCanvas.height);
-        
-        const imageData = tempCanvas.toDataURL('image/jpeg');
-        
-        const faceDetections = await detectFaces(imageData, confidenceThreshold);
-        
-        setDetections(faceDetections);
-        
-        drawDetections(
-          overlayCanvasRef.current,
-          faceDetections, 
-          videoRef.current.videoWidth,
-          videoRef.current.videoHeight
-        );
-        
-      } catch (error) {
-        console.error("Error in real-time detection:", error);
-      }
-    };
-    
-    detectionIntervalRef.current = window.setInterval(detectInVideo, 500);
-    
-    return () => {
-      if (detectionIntervalRef.current) {
-        window.clearInterval(detectionIntervalRef.current);
-      }
-    };
-  }, [isCapturing, isRealTimeDetection, confidenceThreshold]);
-  
-  const startCamera = async () => {
+  const handleDetection = async (videoElement: HTMLVideoElement) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 } 
-        } 
-      });
-      streamRef.current = stream;
+      if (!overlayCanvasRef.current) return;
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsCapturing(true);
-        
-        setDetections([]);
-        if (overlayCanvasRef.current) {
-          const ctx = overlayCanvasRef.current.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
-          }
-        }
-        
-        setIsRealTimeDetection(true);
-      }
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = videoElement.videoWidth;
+      tempCanvas.height = videoElement.videoHeight;
+      
+      const ctx = tempCanvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.drawImage(videoElement, 0, 0, tempCanvas.width, tempCanvas.height);
+      const imageData = tempCanvas.toDataURL('image/jpeg');
+      
+      const faceDetections = await detectFaces(imageData, confidenceThreshold);
+      setDetections(faceDetections);
+      
+      drawDetections(
+        overlayCanvasRef.current,
+        faceDetections, 
+        videoElement.videoWidth,
+        videoElement.videoHeight
+      );
     } catch (error) {
-      console.error('Ошибка доступа к камере:', error);
-      toast({
-        variant: "destructive",
-        title: "Ошибка камеры",
-        description: "Не удалось получить доступ к камере. Проверьте разрешения.",
-      });
+      console.error("Error in real-time detection:", error);
     }
   };
   
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setIsCapturing(false);
-    setIsRealTimeDetection(false);
-    
-    if (detectionIntervalRef.current) {
-      window.clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
-  };
+  const [
+    { isCapturing, videoRef, overlayCanvasRef },
+    { startCamera, stopCamera }
+  ] = useCamera({
+    onDetectionInterval: handleDetection,
+    detectionIntervalMs: 500
+  });
+
+  // Load face database on mount
+  useEffect(() => {
+    setFaceDatabase(loadFaceDatabase());
+  }, []);
+  
+  // Save face database when it changes
+  useEffect(() => {
+    saveFaceDatabase(faceDatabase);
+  }, [faceDatabase]);
   
   const captureImage = async () => {
     if (!videoRef.current) return;
@@ -198,61 +93,38 @@ const FaceTraining = () => {
     setIsLoading(true);
     
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      const { imageData, detection, allDetections } = await captureImageFromVideo(videoRef.current, confidenceThreshold);
       
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
+      if (!detection) {
         toast({
           variant: "destructive",
-          title: "Ошибка",
-          description: "Не удалось создать canvas для захвата изображения",
+          title: "No face detected",
+          description: "Make sure your face is clearly visible in the frame.",
         });
-        setIsLoading(false);
         return;
       }
       
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg');
-      
-      const faceDetections = await detectFaces(imageData, confidenceThreshold);
-      
-      if (faceDetections.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "Лицо не обнаружено",
-          description: "Убедитесь, что ваше лицо хорошо видно в кадре.",
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      if (faceDetections.length > 1) {
+      if (allDetections.length > 1) {
         toast({
           variant: "default",
-          title: "Обнаружено несколько лиц",
-          description: "Будет использовано лицо с наивысшей уверенностью распознавания.",
+          title: "Multiple faces detected",
+          description: "Using the face with highest confidence.",
         });
       }
       
-      faceDetections.sort((a, b) => b.confidence - a.confidence);
-      
-      const bestDetection = faceDetections[0];
-      const faceImage = await extractFaceRegion(imageData, bestDetection);
-      
+      const faceImage = await extractFaceRegion(imageData, detection);
       setCapturedImages(prev => [...prev, faceImage]);
       
       toast({
-        title: "Лицо захвачено",
-        description: `Уверенность распознавания: ${Math.round(bestDetection.confidence * 100)}%`,
+        title: "Face captured",
+        description: `Detection confidence: ${Math.round(detection.confidence * 100)}%`,
       });
     } catch (error) {
-      console.error('Ошибка при захвате изображения:', error);
+      console.error('Error capturing image:', error);
       toast({
         variant: "destructive",
-        title: "Ошибка",
-        description: "Не удалось обработать изображение. Пожалуйста, попробуйте еще раз.",
+        title: "Error",
+        description: "Failed to process the image. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -263,43 +135,12 @@ const FaceTraining = () => {
     setCapturedImages(prev => prev.filter((_, i) => i !== index));
   };
   
-  const generateEmbeddings = async (images: string[]): Promise<number[][]> => {
-    if (!featureExtractorRef.current) {
-      throw new Error('Модель не загружена');
-    }
-    
-    const embeddings: number[][] = [];
-    
-    for (let i = 0; i < images.length; i++) {
-      try {
-        setProcessingProgress(((i + 1) / images.length) * 100);
-        
-        const img = new Image();
-        img.src = images[i];
-        await new Promise(resolve => {
-          img.onload = resolve;
-        });
-        
-        const embedding = await featureExtractorRef.current(img, { 
-          pooling: "mean", 
-          normalize: true 
-        });
-        
-        embeddings.push(embedding.tolist()[0]);
-      } catch (error) {
-        console.error('Ошибка при создании эмбеддинга:', error);
-      }
-    }
-    
-    return embeddings;
-  };
-  
   const registerFace = async () => {
     if (!userName || capturedImages.length === 0) {
       toast({
         variant: "destructive",
-        title: "Недостаточно данных",
-        description: "Пожалуйста, введите имя и сделайте хотя бы одно фото.",
+        title: "Insufficient data",
+        description: "Please enter a name and take at least one photo.",
       });
       return;
     }
@@ -311,11 +152,15 @@ const FaceTraining = () => {
       const userId = `user_${Date.now()}`;
       
       toast({
-        title: "Обработка изображений",
-        description: "Создание эмбеддингов для распознавания лица...",
+        title: "Processing images",
+        description: "Creating embeddings for face recognition...",
       });
       
-      const embeddings = await generateEmbeddings(capturedImages);
+      const embeddings = await generateEmbeddings(
+        capturedImages, 
+        featureExtractor,
+        (progress) => setProcessingProgress(progress)
+      );
       
       const newUser: FaceData = {
         id: userId,
@@ -328,8 +173,8 @@ const FaceTraining = () => {
       setFaceDatabase(prev => [...prev, newUser]);
       
       toast({
-        title: "Пользователь добавлен",
-        description: `${userName} успешно добавлен в базу данных распознавания.`,
+        title: "User added",
+        description: `${userName} successfully added to recognition database.`,
       });
       
       setUserName('');
@@ -337,11 +182,11 @@ const FaceTraining = () => {
       stopCamera();
       
     } catch (error) {
-      console.error('Ошибка при регистрации лица:', error);
+      console.error('Error registering face:', error);
       toast({
         variant: "destructive",
-        title: "Ошибка регистрации",
-        description: "Не удалось зарегистрировать пользователя.",
+        title: "Registration error",
+        description: "Failed to register user.",
       });
     } finally {
       setIsLoading(false);
@@ -352,34 +197,17 @@ const FaceTraining = () => {
   const deleteFace = (id: string) => {
     setFaceDatabase(prev => prev.filter(face => face.id !== id));
     toast({
-      title: "Пользователь удален",
-      description: "Пользователь удален из базы данных распознавания.",
+      title: "User deleted",
+      description: "User removed from recognition database.",
     });
   };
   
-  const calculateSimilarity = (embedding1: number[], embedding2: number[]): number => {
-    let dotProduct = 0;
-    let mag1 = 0;
-    let mag2 = 0;
-    
-    for (let i = 0; i < embedding1.length; i++) {
-      dotProduct += embedding1[i] * embedding2[i];
-      mag1 += embedding1[i] * embedding1[i];
-      mag2 += embedding2[i] * embedding2[i];
-    }
-    
-    mag1 = Math.sqrt(mag1);
-    mag2 = Math.sqrt(mag2);
-    
-    return dotProduct / (mag1 * mag2);
-  };
-  
   const recognizeFace = async () => {
-    if (!videoRef.current || !modelLoaded || !featureExtractorRef.current) {
+    if (!videoRef.current || !modelLoaded || !featureExtractor) {
       toast({
         variant: "destructive",
-        title: "Ошибка",
-        description: "Камера или модель не готовы для распознавания.",
+        title: "Error",
+        description: "Camera or model not ready for recognition.",
       });
       return;
     }
@@ -387,34 +215,18 @@ const FaceTraining = () => {
     try {
       setIsLoading(true);
       
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      const { imageData, detection, allDetections } = await captureImageFromVideo(videoRef.current, confidenceThreshold);
       
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Не удалось создать контекст canvas');
-      }
-      
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg');
-      
-      const faceDetections = await detectFaces(imageData, confidenceThreshold);
-      
-      if (faceDetections.length === 0) {
+      if (!detection) {
         toast({
           variant: "destructive",
-          title: "Лицо не обнаружено",
-          description: "Убедитесь, что ваше лицо хорошо видно в кадре.",
+          title: "No face detected",
+          description: "Make sure your face is clearly visible in the frame.",
         });
-        setIsLoading(false);
         return;
       }
       
-      faceDetections.sort((a, b) => b.confidence - a.confidence);
-      
-      const bestDetection = faceDetections[0];
-      const faceImage = await extractFaceRegion(imageData, bestDetection);
+      const faceImage = await extractFaceRegion(imageData, detection);
       
       const img = new Image();
       img.src = faceImage;
@@ -422,7 +234,7 @@ const FaceTraining = () => {
         img.onload = resolve;
       });
       
-      const embedding = await featureExtractorRef.current(img, { 
+      const embedding = await featureExtractor(img, { 
         pooling: "mean", 
         normalize: true 
       });
@@ -445,27 +257,26 @@ const FaceTraining = () => {
       }
       
       if (bestMatch) {
+        bestMatch = { ...bestMatch, recognizedFaceImage: faceImage };
         setRecognizedPerson(bestMatch);
         toast({
-          title: "Лицо распознано",
-          description: `Распознан пользователь: ${bestMatch.name} (${bestMatch.role})`,
+          title: "Face recognized",
+          description: `Recognized user: ${bestMatch.name} (${bestMatch.role})`,
         });
-        
-        bestMatch.recognizedFaceImage = faceImage;
       } else {
         setRecognizedPerson(null);
         toast({
           variant: "destructive",
-          title: "Лицо не распознано",
-          description: "Не удалось найти совпадение в базе данных.",
+          title: "Face not recognized",
+          description: "No match found in the database.",
         });
       }
     } catch (error) {
-      console.error('Ошибка при распознавании лица:', error);
+      console.error('Error recognizing face:', error);
       toast({
         variant: "destructive",
-        title: "Ошибка распознавания",
-        description: "Произошла ошибка при распознавании лица.",
+        title: "Recognition error",
+        description: "An error occurred during face recognition.",
       });
     } finally {
       setIsLoading(false);
@@ -476,133 +287,80 @@ const FaceTraining = () => {
     if (!modelLoaded) {
       toast({
         variant: "destructive",
-        title: "Модель не загружена",
-        description: "Дождитесь загрузки модели для распознавания лиц.",
+        title: "Model not loaded",
+        description: "Wait for the model to load before recognition.",
       });
       return;
     }
     
     await startCamera();
   };
-  
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Обучение и распознавание лиц</CardTitle>
-        <CardDescription>Обучите систему распознавать владельцев и гостей</CardDescription>
+        <CardTitle>Face Training and Recognition</CardTitle>
+        <CardDescription>Train the system to recognize owners and guests</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="register">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="register">Регистрация лиц</TabsTrigger>
-            <TabsTrigger value="recognize">Распознавание</TabsTrigger>
+            <TabsTrigger value="register">Face Registration</TabsTrigger>
+            <TabsTrigger value="recognize">Recognition</TabsTrigger>
           </TabsList>
           
           <TabsContent value="register" className="space-y-4 mt-4">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="userName">Имя пользователя</Label>
-                  <Input 
-                    id="userName" 
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="Иван Иванов"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="userRole">Роль</Label>
-                  <Select value={userRole} onValueChange={(value: 'owner' | 'guest' | 'admin') => setUserRole(value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите роль" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="owner">Владелец</SelectItem>
-                      <SelectItem value="guest">Гость</SelectItem>
-                      <SelectItem value="admin">Администратор</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <UserForm
+                userName={userName}
+                userRole={userRole}
+                onNameChange={setUserName}
+                onRoleChange={setUserRole}
+              />
               
               <div className="space-y-2">
-                <Label>Изображения лица</Label>
+                <label>Face Images</label>
                 <div className="border rounded-md p-4">
                   {isCapturing ? (
                     <div className="space-y-4">
-                      <div className="aspect-video bg-muted rounded-md overflow-hidden relative">
-                        <video 
-                          ref={videoRef} 
-                          autoPlay 
-                          playsInline
-                          className="w-full h-full object-cover"
-                        />
-                        <canvas
-                          ref={overlayCanvasRef}
-                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                        />
-                        
-                        <div className="absolute top-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs flex items-center">
-                          <div className={`h-2 w-2 rounded-full mr-1 ${detections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                          {detections.length > 0 ? `Обнаружено лиц: ${detections.length}` : 'Поиск лиц...'}
-                        </div>
-                      </div>
+                      <CameraView
+                        isCapturing={isCapturing}
+                        videoRef={videoRef}
+                        overlayCanvasRef={overlayCanvasRef}
+                        detections={detections}
+                        isLoading={isLoading}
+                      />
                       <div className="flex justify-between">
                         <Button 
                           onClick={captureImage} 
                           disabled={isLoading}
-                          className="relative"
                         >
                           {isLoading ? (
                             <>
                               <Loader2 size={16} className="mr-2 animate-spin" />
-                              Обработка...
+                              Processing...
                             </>
                           ) : (
                             <>
                               <Camera size={16} className="mr-2" /> 
-                              Захватить фото
+                              Capture Photo
                             </>
                           )}
                         </Button>
                         <Button variant="outline" onClick={stopCamera} disabled={isLoading}>
-                          Остановить камеру
+                          Stop Camera
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div>
                       {capturedImages.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2">
-                          {capturedImages.map((img, index) => (
-                            <div key={index} className="relative">
-                              <img 
-                                src={img} 
-                                alt={`Лицо ${index + 1}`} 
-                                className="w-full h-24 object-cover rounded-md"
-                              />
-                              <Button 
-                                variant="destructive" 
-                                size="icon"
-                                className="absolute top-1 right-1 h-6 w-6"
-                                onClick={() => deleteImage(index)}
-                                disabled={isLoading}
-                              >
-                                <Trash size={14} />
-                              </Button>
-                            </div>
-                          ))}
-                          {capturedImages.length < 5 && (
-                            <Button 
-                              variant="outline" 
-                              className="h-24 flex items-center justify-center"
-                              onClick={startCamera}
-                              disabled={isLoading}
-                            >
-                              <Camera size={24} />
-                            </Button>
-                          )}
-                        </div>
+                        <CapturedImages
+                          images={capturedImages}
+                          onDeleteImage={deleteImage}
+                          onStartCamera={startCamera}
+                          isLoading={isLoading}
+                        />
                       ) : (
                         <Button 
                           variant="outline" 
@@ -610,21 +368,21 @@ const FaceTraining = () => {
                           onClick={startCamera}
                           disabled={isLoading}
                         >
-                          <Camera size={20} className="mr-2" /> Включить камеру
+                          <Camera size={20} className="mr-2" /> Enable Camera
                         </Button>
                       )}
                     </div>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Сделайте 3-5 фотографий лица с разных ракурсов для лучшего распознавания.
+                  Take 3-5 photos of your face from different angles for better recognition.
                 </p>
               </div>
               
               {processingProgress > 0 && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm mb-1">
-                    <span>Обработка изображений</span>
+                    <span>Processing images</span>
                     <span>{Math.round(processingProgress)}%</span>
                   </div>
                   <Progress value={processingProgress} className="h-2" />
@@ -641,7 +399,7 @@ const FaceTraining = () => {
                 ) : (
                   <UserPlus size={16} className="mr-2" />
                 )}
-                Зарегистрировать
+                Register
               </Button>
               
               <div className="flex items-center space-x-2 text-sm">
@@ -650,46 +408,16 @@ const FaceTraining = () => {
               </div>
             </div>
             
-            {faceDatabase.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-medium mb-3">Зарегистрированные пользователи</h3>
-                <div className="space-y-2">
-                  {faceDatabase.map((face) => (
-                    <div key={face.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
-                      <div className="flex items-center space-x-3">
-                        <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                          <img 
-                            src={face.images[0]} 
-                            alt={face.name}
-                            className="object-cover h-full w-full"
-                          />
-                        </div>
-                        <div>
-                          <div className="font-medium">{face.name}</div>
-                          <div className="text-sm text-muted-foreground capitalize">{face.role}</div>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => deleteFace(face.id)}
-                      >
-                        <Trash size={16} />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <UserList users={faceDatabase} onDeleteUser={deleteFace} />
           </TabsContent>
           
           <TabsContent value="recognize" className="space-y-4 mt-4">
             <div className="space-y-4">
               {faceDatabase.length === 0 ? (
                 <Alert>
-                  <AlertTitle>Нет зарегистрированных лиц</AlertTitle>
+                  <AlertTitle>No registered faces</AlertTitle>
                   <AlertDescription>
-                    Перейдите на вкладку "Регистрация лиц" и добавьте хотя бы одно лицо для распознавания.
+                    Go to the "Face Registration" tab and add at least one face for recognition.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -697,27 +425,13 @@ const FaceTraining = () => {
                   <div className="border rounded-md p-4">
                     {isCapturing ? (
                       <div className="space-y-4">
-                        <div className="aspect-video bg-muted rounded-md overflow-hidden relative">
-                          <video 
-                            ref={videoRef} 
-                            autoPlay 
-                            playsInline
-                            className="w-full h-full object-cover"
-                          />
-                          <canvas
-                            ref={overlayCanvasRef}
-                            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                          />
-                          
-                          <div className="absolute top-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs flex items-center">
-                            <div className={`h-2 w-2 rounded-full mr-1 ${detections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
-                            {detections.length > 0 ? `Обнаружено лиц: ${detections.length}` : 'Поиск лиц...'}
-                          </div>
-
-                          <div className="absolute bottom-2 left-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs">
-                            Нажмите кнопку "Распознать" когда лицо будет четко видно в кадре
-                          </div>
-                        </div>
+                        <CameraView
+                          isCapturing={isCapturing}
+                          videoRef={videoRef}
+                          overlayCanvasRef={overlayCanvasRef}
+                          detections={detections}
+                          isLoading={isLoading}
+                        />
                         <div className="flex justify-between">
                           <Button onClick={recognizeFace} disabled={isLoading}>
                             {isLoading ? (
@@ -725,10 +439,10 @@ const FaceTraining = () => {
                             ) : (
                               <Activity size={16} className="mr-2" />
                             )}
-                            Распознать
+                            Recognize
                           </Button>
                           <Button variant="outline" onClick={stopCamera} disabled={isLoading}>
-                            Остановить камеру
+                            Stop Camera
                           </Button>
                         </div>
                       </div>
@@ -739,31 +453,12 @@ const FaceTraining = () => {
                         disabled={isLoading || !modelLoaded}
                       >
                         <Camera size={20} className="mr-2" /> 
-                        Включить режим распознавания
+                        Enable Recognition Mode
                       </Button>
                     )}
                   </div>
                   
-                  {recognizedPerson && (
-                    <div className="p-4 border rounded-md bg-primary/10">
-                      <div className="flex items-center space-x-4">
-                        <div className="relative h-16 w-16 overflow-hidden rounded-full">
-                          <img 
-                            src={recognizedPerson.recognizedFaceImage || recognizedPerson.images[0]} 
-                            alt={recognizedPerson.name}
-                            className="object-cover h-full w-full"
-                          />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-lg">{recognizedPerson.name}</h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm capitalize bg-primary/20 px-2 py-1 rounded">{recognizedPerson.role}</span>
-                            <Check size={16} className="text-green-500" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {recognizedPerson && <RecognizedPerson person={recognizedPerson} />}
                 </>
               )}
             </div>
@@ -772,7 +467,7 @@ const FaceTraining = () => {
       </CardContent>
       <CardFooter className="flex flex-col items-start">
         <p className="text-sm text-muted-foreground">
-          База данных сохраняется локально в вашем браузере. Для промышленного использования необходимо интегрировать с сервером.
+          Database is stored locally in your browser. For production use, integrate with a server.
         </p>
       </CardFooter>
     </Card>
