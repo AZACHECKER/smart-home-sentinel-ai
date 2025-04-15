@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Activity, Bell, Camera, Home, Menu, Settings, UserRound, Users, ScanFace } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface HeaderProps {
   systemStatus: {
@@ -15,7 +14,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ systemStatus }) => {
   const location = useLocation();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const links = [

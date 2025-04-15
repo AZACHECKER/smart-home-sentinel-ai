@@ -7,13 +7,24 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { translations as t } from '@/constants/translations';
 
-const Index = () => {
+interface IndexProps {
+  systemStatus: {
+    connected: boolean;
+    lockState: string;
+    lightState: string;
+    alarmState: string;
+  };
+  onControlAction: (action: string) => void;
+  onVoiceCommand: (command: string) => void;
+}
+
+const Index: React.FC<IndexProps> = ({ systemStatus: initialSystemStatus, onControlAction: parentControlAction, onVoiceCommand: parentVoiceCommand }) => {
   const { toast } = useToast();
   const [systemStatus, setSystemStatus] = useState({
-    connected: true,
-    lockState: 'locked',
-    lightState: 'off',
-    alarmState: 'off'
+    connected: initialSystemStatus.connected,
+    lockState: initialSystemStatus.lockState,
+    lightState: initialSystemStatus.lightState,
+    alarmState: initialSystemStatus.alarmState
   });
 
   const handleControlAction = (action: string) => {
@@ -62,6 +73,9 @@ const Index = () => {
       description: description,
       variant: variant,
     });
+    
+    // Call the parent handler
+    parentControlAction(action);
   };
 
   const handleVoiceCommand = (command: string) => {
@@ -70,7 +84,10 @@ const Index = () => {
       description: command,
     });
     
-    // Обработка голосовых команд
+    // Call the parent handler
+    parentVoiceCommand(command);
+    
+    // Process voice command locally
     const lowerCommand = command.toLowerCase();
     
     if (lowerCommand.includes('открыть') || lowerCommand.includes('разблокировать')) {
