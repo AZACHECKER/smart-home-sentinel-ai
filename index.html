@@ -17,11 +17,22 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- Полифиллы для CommonJS-модулей -->
+    <!-- Enhanced polyfills for CommonJS modules -->
     <script>
       window.global = window;
       window.process = { env: {} };
       var module = {};
+      // Add require polyfill for seedrandom and similar libraries
+      window.require = function(modulePath) {
+        if (modulePath === './seedrandom') {
+          return window.seedrandom || {};
+        }
+        if (modulePath === 'seedrandom') {
+          return window.seedrandom || {};
+        }
+        console.warn('Module not polyfilled:', modulePath);
+        return {};
+      };
     </script>
   </head>
 

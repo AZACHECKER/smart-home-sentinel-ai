@@ -9,6 +9,14 @@ if (typeof window !== 'undefined' && typeof window.global === 'undefined') {
   window.global = window;
 }
 
+// Полифилл для require (решение проблемы с seedrandom)
+if (typeof window !== 'undefined' && typeof window.require === 'undefined') {
+  window.require = function(modulePath) {
+    console.warn('Module not polyfilled:', modulePath);
+    return {};
+  };
+}
+
 // Динамический импорт TensorFlow для предотвращения проблем
 const initTensorFlow = async () => {
   try {

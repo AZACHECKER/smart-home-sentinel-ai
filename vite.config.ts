@@ -43,6 +43,10 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules/long')) {
             return 'vendors-long';
           }
+          // Отдельный чанк для seedrandom
+          if (id.includes('node_modules/seedrandom')) {
+            return 'vendors-seedrandom';
+          }
         },
         // Обработка модулей CommonJS (таких как long.js)
         format: 'es',
@@ -52,7 +56,7 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 3000,
   },
   optimizeDeps: {
-    include: ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd', 'face-api.js', 'long'],
+    include: ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd', 'face-api.js', 'long', 'seedrandom'],
     exclude: ['@tensorflow/tfjs-core/dist/ops/ops_for_converter'],
     esbuildOptions: {
       // Настройка для long.js и подобных библиотек
