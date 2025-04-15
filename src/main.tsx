@@ -11,10 +11,20 @@ if (typeof window !== 'undefined' && typeof window.global === 'undefined') {
 
 // Полифилл для require (решение проблемы с seedrandom)
 if (typeof window !== 'undefined' && typeof window.require === 'undefined') {
-  window.require = function(modulePath) {
+  // Create a basic implementation of NodeRequire interface
+  const requireFn = function(modulePath: string) {
     console.warn('Module not polyfilled:', modulePath);
     return {};
   };
+  
+  // Add the required properties to match NodeRequire interface
+  requireFn.resolve = (id: string) => id;
+  requireFn.cache = {};
+  requireFn.extensions = {};
+  requireFn.main = { id: '', filename: '', loaded: true };
+  
+  // Assign the properly typed function to window.require
+  window.require = requireFn;
 }
 
 // Динамический импорт TensorFlow для предотвращения проблем
