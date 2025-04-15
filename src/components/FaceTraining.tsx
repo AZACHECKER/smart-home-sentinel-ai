@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +18,7 @@ interface FaceData {
   role: 'owner' | 'guest' | 'admin';
   images: string[];
   embeddings?: number[][];
+  recognizedFaceImage?: string;
 }
 
 const FaceTraining = () => {
@@ -47,7 +47,6 @@ const FaceTraining = () => {
   const detectionIntervalRef = useRef<number | null>(null);
   const featureExtractorRef = useRef<any>(null);
   
-  // Load the AI model on component mount
   useEffect(() => {
     const loadModel = async () => {
       try {
@@ -90,12 +89,10 @@ const FaceTraining = () => {
     };
   }, [toast]);
   
-  // Save face database to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('faceDatabase', JSON.stringify(faceDatabase));
   }, [faceDatabase]);
   
-  // Real-time face detection
   useEffect(() => {
     if (!isCapturing || !isRealTimeDetection || !overlayCanvasRef.current || !videoRef.current) {
       return;
@@ -105,7 +102,6 @@ const FaceTraining = () => {
       if (!videoRef.current || !overlayCanvasRef.current) return;
       
       try {
-        // Create temporary canvas to get video frame
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = videoRef.current.videoWidth;
         tempCanvas.height = videoRef.current.videoHeight;
@@ -113,19 +109,14 @@ const FaceTraining = () => {
         const ctx = tempCanvas.getContext('2d');
         if (!ctx) return;
         
-        // Draw current video frame to canvas
         ctx.drawImage(videoRef.current, 0, 0, tempCanvas.width, tempCanvas.height);
         
-        // Get image data as base64
         const imageData = tempCanvas.toDataURL('image/jpeg');
         
-        // Detect faces
         const faceDetections = await detectFaces(imageData, confidenceThreshold);
         
-        // Update state with detections
         setDetections(faceDetections);
         
-        // Draw boxes on overlay canvas
         drawDetections(
           overlayCanvasRef.current,
           faceDetections, 
@@ -138,10 +129,8 @@ const FaceTraining = () => {
       }
     };
     
-    // Start detection interval
     detectionIntervalRef.current = window.setInterval(detectInVideo, 500);
     
-    // Clean up interval on component unmount or when dependencies change
     return () => {
       if (detectionIntervalRef.current) {
         window.clearInterval(detectionIntervalRef.current);
@@ -164,7 +153,6 @@ const FaceTraining = () => {
         videoRef.current.srcObject = stream;
         setIsCapturing(true);
         
-        // Clear previous detections
         setDetections([]);
         if (overlayCanvasRef.current) {
           const ctx = overlayCanvasRef.current.getContext('2d');
@@ -173,7 +161,6 @@ const FaceTraining = () => {
           }
         }
         
-        // Enable real-time detection
         setIsRealTimeDetection(true);
       }
     } catch (error) {
@@ -199,7 +186,6 @@ const FaceTraining = () => {
     setIsCapturing(false);
     setIsRealTimeDetection(false);
     
-    // Clear detection interval
     if (detectionIntervalRef.current) {
       window.clearInterval(detectionIntervalRef.current);
       detectionIntervalRef.current = null;
@@ -227,11 +213,9 @@ const FaceTraining = () => {
         return;
       }
       
-      // Draw video frame to canvas
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg');
       
-      // Detect faces in the captured image
       const faceDetections = await detectFaces(imageData, confidenceThreshold);
       
       if (faceDetections.length === 0) {
@@ -246,20 +230,17 @@ const FaceTraining = () => {
       
       if (faceDetections.length > 1) {
         toast({
-          variant: "warning",
+          variant: "default",
           title: "Обнаружено несколько лиц",
           description: "Будет использовано лицо с наивысшей уверенностью распознавания.",
         });
       }
       
-      // Sort detections by confidence (highest first)
       faceDetections.sort((a, b) => b.confidence - a.confidence);
       
-      // Extract the most confident face region
       const bestDetection = faceDetections[0];
       const faceImage = await extractFaceRegion(imageData, bestDetection);
       
-      // Add to captured images
       setCapturedImages(prev => [...prev, faceImage]);
       
       toast({
@@ -291,17 +272,14 @@ const FaceTraining = () => {
     
     for (let i = 0; i < images.length; i++) {
       try {
-        // Update progress
         setProcessingProgress(((i + 1) / images.length) * 100);
         
-        // Create image element from base64 string
         const img = new Image();
         img.src = images[i];
         await new Promise(resolve => {
           img.onload = resolve;
         });
         
-        // Generate embedding
         const embedding = await featureExtractorRef.current(img, { 
           pooling: "mean", 
           normalize: true 
@@ -409,7 +387,6 @@ const FaceTraining = () => {
     try {
       setIsLoading(true);
       
-      // Capture current frame
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
@@ -422,7 +399,6 @@ const FaceTraining = () => {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg');
       
-      // Detect faces
       const faceDetections = await detectFaces(imageData, confidenceThreshold);
       
       if (faceDetections.length === 0) {
@@ -435,14 +411,11 @@ const FaceTraining = () => {
         return;
       }
       
-      // Sort detections by confidence (highest first)
       faceDetections.sort((a, b) => b.confidence - a.confidence);
       
-      // Extract face with highest confidence
       const bestDetection = faceDetections[0];
       const faceImage = await extractFaceRegion(imageData, bestDetection);
       
-      // Create embedding for detected face
       const img = new Image();
       img.src = faceImage;
       await new Promise(resolve => {
@@ -455,7 +428,6 @@ const FaceTraining = () => {
       });
       const currentEmbedding = embedding.tolist()[0];
       
-      // Compare with faces in database
       let bestMatch: FaceData | null = null;
       let highestSimilarity = 0;
       
@@ -479,7 +451,6 @@ const FaceTraining = () => {
           description: `Распознан пользователь: ${bestMatch.name} (${bestMatch.role})`,
         });
         
-        // Update state with recognized face image
         bestMatch.recognizedFaceImage = faceImage;
       } else {
         setRecognizedPerson(null);
@@ -571,7 +542,6 @@ const FaceTraining = () => {
                           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                         />
                         
-                        {/* Real-time detection status */}
                         <div className="absolute top-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs flex items-center">
                           <div className={`h-2 w-2 rounded-full mr-1 ${detections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
                           {detections.length > 0 ? `Обнаружено лиц: ${detections.length}` : 'Поиск лиц...'}
@@ -739,7 +709,6 @@ const FaceTraining = () => {
                             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                           />
                           
-                          {/* Real-time detection indicator */}
                           <div className="absolute top-2 right-2 bg-black/60 text-white rounded-md px-2 py-1 text-xs flex items-center">
                             <div className={`h-2 w-2 rounded-full mr-1 ${detections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
                             {detections.length > 0 ? `Обнаружено лиц: ${detections.length}` : 'Поиск лиц...'}
